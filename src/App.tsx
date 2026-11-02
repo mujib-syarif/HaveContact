@@ -9,6 +9,7 @@ type LookupResult = {
   reportCount: number;
   categories: { name: string; count: number }[];
   identity: null;
+  metadata: { country: string | null; countryCallingCode: string; nationalNumber: string; numberType: string | null; valid: boolean } | null;
   disclaimer: string;
 };
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
@@ -75,6 +76,7 @@ function App() {
       {result && <div className="result-card mt-5 w-full max-w-2xl text-left">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs text-hc-muted">Hasil pencarian</p><p className="mt-1 text-lg font-semibold">{result.number}</p></div><span className={result.reportCount ? "risk-pill" : "neutral-pill"}>{result.reportCount ? "Ada laporan komunitas" : "Belum ada laporan"}</span></div>
         <div className="mt-5 grid grid-cols-2 gap-3"><div className="mini-stat"><p className="text-2xl font-semibold">{result.reportCount}</p><p className="text-xs text-hc-muted">Laporan disetujui</p></div><div className="mini-stat"><p className="text-sm font-semibold">{result.categories.length ? result.categories.map(c=>c.name).join(", ") : "Belum tersedia"}</p><p className="text-xs text-hc-muted">Kategori laporan</p></div></div>
+        <div className="mini-stat mt-3"><p className="text-xs text-hc-muted">Metadata nomor</p><p className="mt-1 text-sm font-semibold">{result.metadata?.country ?? "Wilayah tidak diketahui"} <span className="text-hc-muted">(+{result.metadata?.countryCallingCode ?? "—"})</span></p><p className="mt-1 text-xs text-hc-muted">Jenis: {result.metadata?.numberType ?? "Tidak teridentifikasi"}</p></div>
         <p className="mt-4 text-xs leading-5 text-hc-muted">{result.disclaimer}</p>
       </div>}
       <div className="mt-4 flex items-center gap-2 text-xs text-hc-muted"><LockKeyhole size={13}/>Pencarian tidak otomatis menjadi laporan publik.</div>
@@ -91,5 +93,5 @@ function App() {
   </main>;
 }
 function Stat({icon,title,text}:{icon:ReactNode;title:string;text:string}) { return <div className="stat-card"><div className="mb-3 text-hc-lime">{icon}</div><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs text-hc-muted">{text}</p></div>; }
-function InfoRow({icon,title,text}:{icon:React.ReactNode;title:string;text:string}) { return <div className="flex gap-4 rounded-2xl border border-hc-line bg-hc-panel p-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-hc-lime/10 text-hc-lime">{icon}</div><div><h3 className="text-sm font-semibold">{title}</h3><p className="mt-1 text-xs leading-5 text-hc-muted">{text}</p></div></div>; }
+function InfoRow({icon,title,text}:{icon:ReactNode;title:string;text:string}) { return <div className="flex gap-4 rounded-2xl border border-hc-line bg-hc-panel p-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-hc-lime/10 text-hc-lime">{icon}</div><div><h3 className="text-sm font-semibold">{title}</h3><p className="mt-1 text-xs leading-5 text-hc-muted">{text}</p></div></div>; }
 export default App;

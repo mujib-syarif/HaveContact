@@ -2,6 +2,7 @@ interface Env {
   DB: D1Database;
   PHONE_HASH_SECRET: string;
   TURNSTILE_SECRET?: string;
+  ADMIN_API_TOKEN?: string;
   APP_ENV?: string;
 }
 const corsHeaders = {
@@ -47,6 +48,35 @@ export default {
       return json({ ok: true, service: "havecontact-api", environment: env.APP_ENV ?? "unknown" });
     }
     if (!env.DB || !env.PHONE_HASH_SECRET) return json({ ok: false, error: "Service is not configured" }, 503);
+    // Admin moderation routes are protected by a server-side bearer token.
+    if (url.pathname === "/api/admin/reports" && request.method === "GET") {
+      const supplied = request.headers.get("Authorization") ?? "";
+      if (!env.ADMIN_API_TOKEN || supplied !== `Bearer ${env.ADMIN_API_TOKEN}`) {
+        return json({ ok: false, error: "Unauthorized" }, 401);
+      }
+      const status = url.searchParams.get("status") ?? "pending";
+      if (!["pending", "approved", "rejected"].includes(status)) return json({ ok: false, error: "Invalid status" }, 400);
+      const rows = await env.DB.prepare("SELECT id, category, description, status, created_at FROM reports WHERE status = ? ORDER BY created_at ASC LIMIT 100").bind(status).all();
+      return json({ ok: true, reports: rows.results ?? [] });
+    }
+    const moderationMatch = url.pathname.match(/^\\/api\\/admin\\/reports\\/([a-f0-9-]{36})\\/moderate$/i);
+    if (request.method === "POST" && moderationMatch) {
+      const supplied = request.headers.get("Authorization") ?? "";
+      if (!env.ADMIN_API_TOKEN || supplied !== `Bearer ${env.ADMIN_API_TOKEN}`) return json({ ok: false, error: "Unauthorized" }, 401);
+      let body: { action?: string };
+      try { body = await request.json() as { action?: string }; } catch { return json({ ok: false, error: "Invalid JSON body" }, 400); }
+      if (body.action !== "approved" && body.action !== "rejected") return json({ ok: false, error: "Invalid action" }, 400);
+      const id = moderationMatch[1];
+      const row = await env.DB.prepare("SELECT id, status FROM reports WHERE id = ?").bind(id).first<{ id: string; status: string }>();
+      if (!row) return json({ ok: false, error: "Report not found" }, 404);
+      if (row.status !== "pending") return json({ ok: false, error: "Report is no longer pending" }, 409);
+      await env.DB.batch([
+        env.DB.prepare("UPDATE reports SET status = ?, moderated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND status = 'pending'").bind(body.action, id),
+        env.DB.prepare("INSERT INTO moderation_logs (id, report_id, action, moderator_ref) VALUES (?, ?, ?, 'admin-api')").bind(crypto.randomUUID(), id, body.action)
+      ]);
+      return json({ ok: true, report: { id, status: body.action } });
+    }
+
 
     if (request.method === "GET" && url.pathname === "/api/v1/lookup") {
       const phone = normalizePhone(url.searchParams.get("phone"));

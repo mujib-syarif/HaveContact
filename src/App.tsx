@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import ReportForm from "./ReportForm";
+import AdminPanel from "./AdminPanel";
 import { Search, ShieldCheck, Phone, Flag, Users, ArrowUpRight, Menu, X, Globe2, LockKeyhole } from "lucide-react";
 
 type LookupResult = {
@@ -45,6 +46,8 @@ function App() {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan jaringan.");
     } finally { setBusy(false); }
   }
+
+  if (window.location.pathname === "/admin") return <AdminPanel/>;
 
   return <main className="min-h-screen overflow-hidden bg-hc-bg text-white">
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />

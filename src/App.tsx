@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Search, ShieldCheck, Phone, Flag, Users, ArrowUpRight, Menu, X, Globe2, LockKeyhole } from "lucide-react";
 
 type LookupResult = {
@@ -83,6 +83,6 @@ function App() {
     <footer id="privacy" className="relative z-10 border-t border-hc-line/70"><div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-xs text-hc-muted sm:px-8 md:flex-row md:items-center md:justify-between"><p>© {new Date().getFullYear()} HaveContact. Independent community phone intelligence.</p><p className="flex items-center gap-2"><ShieldCheck size={14} className="text-hc-lime"/>Privacy-first by design</p></div></footer>
   </main>;
 }
-function Stat({icon,title,text}:{icon:React.ReactNode;title:string;text:string}) { return <div className="stat-card"><div className="mb-3 text-hc-lime">{icon}</div><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs text-hc-muted">{text}</p></div>; }
+function Stat({icon,title,text}:{icon:ReactNode;title:string;text:string}) { return <div className="stat-card"><div className="mb-3 text-hc-lime">{icon}</div><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs text-hc-muted">{text}</p></div>; }
 function InfoRow({icon,title,text}:{icon:React.ReactNode;title:string;text:string}) { return <div className="flex gap-4 rounded-2xl border border-hc-line bg-hc-panel p-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-hc-lime/10 text-hc-lime">{icon}</div><div><h3 className="text-sm font-semibold">{title}</h3><p className="mt-1 text-xs leading-5 text-hc-muted">{text}</p></div></div>; }
 export default App;

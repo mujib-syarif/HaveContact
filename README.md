@@ -87,3 +87,8 @@ MIT - see LICENSE.
 6. Build and deploy the frontend and Worker. Test health, lookup, report submission, and moderation with a non-production test number before public launch.
 
 Rate limiting uses HMAC-derived request buckets rather than storing raw client IP addresses. It is a baseline safeguard, not a substitute for Cloudflare WAF or managed rate limiting on a public launch.
+
+
+## Automated checks
+
+Run `npm test` for phone-number normalization and numbering-metadata unit tests. CI runs typecheck, tests, and production build on pushes and pull requests.

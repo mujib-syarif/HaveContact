@@ -117,7 +117,7 @@ export default {
     if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
     const status=url.searchParams.get("status")??"pending";
     if(!["pending","approved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid status"},400);
-    const rows=await env.DB.prepare("SELECT id,category,description,status,created_at FROM reports WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
+    const rows=await env.DB.prepare("SELECT id,category,description,status,created_at,moderation_reason FROM reports WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
     return json(request,env,{ok:true,reports:rows.results??[]});
   }
   const parts=url.pathname.split("/");
@@ -129,13 +129,16 @@ export default {
     if(!parsedBody.data)return json(request,env,{ok:false,error:parsedBody.error??"Invalid JSON"},400);
     const body=parsedBody.data;
     if(body.action!=="approved"&&body.action!=="rejected")return json(request,env,{ok:false,error:"Invalid action"},400);
+    const reason=typeof body.reason==="string"?body.reason.trim():"";
+    if(reason.length>500)return json(request,env,{ok:false,error:"Moderation reason must be 500 characters or fewer"},400);
+    if(body.action==="rejected"&&reason.length<5)return json(request,env,{ok:false,error:"A rejection reason of at least 5 characters is required"},400);
     const row=await env.DB.prepare("SELECT id,status FROM reports WHERE id=?").bind(reportId).first<{id:string;status:string}>();
     if(!row)return json(request,env,{ok:false,error:"Report not found"},404);
     if(row.status!=="pending")return json(request,env,{ok:false,error:"Report is no longer pending"},409);
-    const update=await env.DB.prepare("UPDATE reports SET status=?,moderated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='pending'").bind(body.action,reportId).run();
+    const update=await env.DB.prepare("UPDATE reports SET status=?,moderation_reason=?,moderated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='pending'").bind(body.action,reason||null,reportId).run();
     if((update.meta?.changes??0)!==1)return json(request,env,{ok:false,error:"Report changed; refresh the queue"},409);
-    await env.DB.prepare("INSERT INTO moderation_logs (id,report_id,action,moderator_ref) VALUES (?,?,?,'admin-api')").bind(crypto.randomUUID(),reportId,body.action).run();
-    return json(request,env,{ok:true,report:{id:reportId,status:body.action}});
+    await env.DB.prepare("INSERT INTO moderation_logs (id,report_id,action,moderator_ref,reason) VALUES (?,?,?,'admin-api',?)").bind(crypto.randomUUID(),reportId,body.action,reason||null).run();
+    return json(request,env,{ok:true,report:{id:reportId,status:body.action,reason:reason||null}});
   }
 
   if(request.method==="GET"&&url.pathname==="/api/v1/lookup"){

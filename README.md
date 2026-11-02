@@ -1,1 +1,64 @@
 # HaveContact
+
+Privacy-first, community-powered phone number intelligence.
+
+## Status
+- Step 1: React + TypeScript + Vite foundation.
+- Step 2: Responsive dark-first landing page and interactive search results.
+- Step 3: Cloudflare Worker API and initial D1 migration.
+- Lookup returns aggregate approved community reports only. It never identifies a private person.
+- Report submission requires Turnstile verification and is queued for moderation.
+
+## Stack
+React 18, TypeScript, Vite, Tailwind CSS, Cloudflare Workers, D1, Wrangler.
+
+## Requirements
+Node.js 20.19+ or 22.12+.
+
+## Local frontend
+```bash
+npm install
+npm run dev
+```
+
+## Local API
+1. Create a D1 database and update `database_id` in `wrangler.toml`.
+2. Apply schema: `npm run db:local`.
+3. Set local secrets in `.dev.vars` (never commit it):
+   ```
+   PHONE_HASH_SECRET=replace-with-long-random-secret
+   TURNSTILE_SECRET=your-turnstile-secret
+   ```
+4. Start API: `npm run api:dev`.
+5. Set `VITE_API_BASE_URL=http://localhost:8787` in local `.env`.
+
+## Production setup
+- Create D1: `npx wrangler d1 create havecontact-db`.
+- Replace the placeholder database ID in `wrangler.toml`.
+- Set secrets with `npx wrangler secret put PHONE_HASH_SECRET` and `npx wrangler secret put TURNSTILE_SECRET`.
+- Configure a Turnstile widget and add its client-side token to the report form when that UI is implemented.
+- Apply migration: `npm run db:remote`.
+- Deploy API: `npx wrangler deploy`.
+- Configure frontend API base URL and deploy the static site.
+
+## API
+- `GET /api/health`
+- `GET /api/v1/lookup?phone=+62812...`
+- `POST /api/v1/reports` (Turnstile required; body: phone, category, description)
+
+## Privacy and safety
+- Phone numbers are normalized and HMAC-indexed; raw numbers are not stored in D1.
+- Report descriptions are private while pending. Public lookup exposes only approved aggregate categories and counts.
+- No automatic contact-book uploads, reverse identity claims, or public personal-name tags.
+- Reports require moderation; provide correction/deletion workflows before public launch.
+- Configure a strict CORS allowlist, rate limiting, retention controls, and admin authentication before production.
+- GET query strings may be present in infrastructure logs; review logging and retention before production.
+
+## Verification
+```bash
+npm run typecheck
+npm run build
+```
+
+## License
+MIT - see LICENSE.

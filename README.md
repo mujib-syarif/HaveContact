@@ -35,7 +35,8 @@ npm run dev
 ## Production setup
 - Create D1: `npx wrangler d1 create havecontact-db`.
 - Replace the placeholder database ID in `wrangler.toml`.
-- Set secrets with `npx wrangler secret put PHONE_HASH_SECRET` and `npx wrangler secret put TURNSTILE_SECRET`.
+- Set secrets with `npx wrangler secret put PHONE_HASH_SECRET` and `npx wrangler secret put TURNSTILE_SECRET
+npx wrangler secret put ADMIN_API_TOKEN`.
 - Configure a Turnstile widget and add its client-side token to the report form when that UI is implemented.
 - Apply migration: `npm run db:remote`.
 - Deploy API: `npx wrangler deploy`.
@@ -45,6 +46,8 @@ npm run dev
 - `GET /api/health`
 - `GET /api/v1/lookup?phone=+62812...`
 - `POST /api/v1/reports` (Turnstile required; body: phone, category, description)
+- `GET /api/admin/reports?status=pending` (admin bearer authentication; statuses: pending, approved, rejected; max 100)
+- `POST /api/admin/reports/:id/moderate` (admin bearer authentication; approve or reject a pending report)
 
 ## Privacy and safety
 - Phone numbers are normalized and HMAC-indexed; raw numbers are not stored in D1.

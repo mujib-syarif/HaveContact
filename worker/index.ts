@@ -59,14 +59,15 @@ export default {
       const rows = await env.DB.prepare("SELECT id, category, description, status, created_at FROM reports WHERE status = ? ORDER BY created_at ASC LIMIT 100").bind(status).all();
       return json({ ok: true, reports: rows.results ?? [] });
     }
-    const moderationMatch = url.pathname.match(/^\\/api\\/admin\\/reports\\/([a-f0-9-]{36})\\/moderate$/i);
-    if (request.method === "POST" && moderationMatch) {
+    const moderationParts = url.pathname.split("/");
+    const moderationId = moderationParts.length === 6 && moderationParts[1] === "api" && moderationParts[2] === "admin" && moderationParts[3] === "reports" && moderationParts[5] === "moderate" ? moderationParts[4] : "";
+    if (request.method === "POST" && moderationId) {
       const supplied = request.headers.get("Authorization") ?? "";
       if (!env.ADMIN_API_TOKEN || supplied !== `Bearer ${env.ADMIN_API_TOKEN}`) return json({ ok: false, error: "Unauthorized" }, 401);
       let body: { action?: string };
       try { body = await request.json() as { action?: string }; } catch { return json({ ok: false, error: "Invalid JSON body" }, 400); }
       if (body.action !== "approved" && body.action !== "rejected") return json({ ok: false, error: "Invalid action" }, 400);
-      const id = moderationMatch[1];
+      const id = moderationId;
       const row = await env.DB.prepare("SELECT id, status FROM reports WHERE id = ?").bind(id).first<{ id: string; status: string }>();
       if (!row) return json({ ok: false, error: "Report not found" }, 404);
       if (row.status !== "pending") return json({ ok: false, error: "Report is no longer pending" }, 409);

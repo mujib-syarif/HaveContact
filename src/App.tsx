@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import ReportForm from "./ReportForm";
 import { Search, ShieldCheck, Phone, Flag, Users, ArrowUpRight, Menu, X, Globe2, LockKeyhole } from "lucide-react";
 
 type LookupResult = {
@@ -79,7 +80,10 @@ function App() {
       </div>
     </section>
     <section id="how-it-works" className="relative z-10 border-y border-hc-line/70 bg-white/[0.015]"><div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-8 md:grid-cols-2 md:items-center"><div><p className="section-kicker">HOW IT WORKS</p><h2 className="mt-4 text-3xl font-semibold tracking-tight">Informasi yang berguna.<br/><span className="text-hc-lime">Bukan asumsi.</span></h2><p className="mt-4 max-w-lg text-sm leading-7 text-hc-muted">HaveContact menggabungkan metadata nomor yang tersedia secara sah dengan laporan komunitas yang melewati moderasi.</p></div><div className="space-y-3"><InfoRow icon={<Globe2 size={18}/>} title="Metadata nomor" text="Negara dan informasi numbering plan jika tersedia."/><InfoRow icon={<Users size={18}/>} title="Pengalaman komunitas" text="Laporan sukarela, bukan unggahan kontak otomatis."/><InfoRow icon={<Flag size={18}/>} title="Konteks risiko" text="Kategori laporan dengan tingkat keyakinan transparan."/></div></div></section>
-    <section id="community" className="relative z-10 mx-auto max-w-6xl px-5 py-16 sm:px-8"><div className="rounded-3xl border border-hc-line bg-hc-panel/70 p-6 sm:p-10"><div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center"><div><p className="section-kicker">COMMUNITY FIRST</p><h2 className="mt-3 text-2xl font-semibold tracking-tight">Dibangun bersama, dijaga bersama.</h2><p className="mt-2 max-w-xl text-sm leading-6 text-hc-muted">Kontribusi harus sukarela, dapat dikoreksi, dan tidak membuka identitas pribadi tanpa dasar yang sah.</p></div><div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-hc-line bg-white/[0.03] text-hc-lime"><Users size={25}/></div></div></div></section>
+    <section id="community" className="relative z-10 mx-auto max-w-6xl px-5 py-16 sm:px-8">
+      <div className="mb-6"><p className="section-kicker">COMMUNITY FIRST</p><h2 className="mt-3 text-2xl font-semibold">Bantu komunitas lebih waspada.</h2><p className="mt-2 text-sm text-hc-muted">Laporan ditinjau sebelum memengaruhi hasil pencarian. Jangan kirim data pribadi.</p></div>
+      <ReportForm/>
+    </section>
     <footer id="privacy" className="relative z-10 border-t border-hc-line/70"><div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-xs text-hc-muted sm:px-8 md:flex-row md:items-center md:justify-between"><p>© {new Date().getFullYear()} HaveContact. Independent community phone intelligence.</p><p className="flex items-center gap-2"><ShieldCheck size={14} className="text-hc-lime"/>Privacy-first by design</p></div></footer>
   </main>;
 }

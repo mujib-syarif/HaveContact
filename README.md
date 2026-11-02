@@ -66,3 +66,12 @@ npm run build
 
 ## License
 MIT - see LICENSE.
+
+
+## Recent implementation notes
+
+- Phone metadata uses `libphonenumber-js` numbering-plan data. It reports country/region and number type where the numbering plan can determine them; it does not identify a subscriber.
+- Apply migration `0002_request_limits.sql` to create privacy-preserving hashed rate-limit buckets.
+- Configure `ALLOWED_ORIGINS` as a comma-separated list of exact production frontend origins in Worker variables. Do not use a wildcard in production.
+- Admin dashboard: open `/admin` on the frontend and enter the server-side `ADMIN_API_TOKEN`. The token stays in page memory and must never be configured as a `VITE_*` variable.
+- The dashboard and report form require the deployed API, D1 migrations, Turnstile site/secret keys, and allowed-origin configuration before they can operate end-to-end.

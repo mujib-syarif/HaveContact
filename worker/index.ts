@@ -1,4 +1,4 @@
-import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import { getPhoneMetadata, normalizePhone } from "../shared/phone";
 
 interface Env {
   DB: D1Database;
@@ -29,22 +29,7 @@ function json(request: Request, env: Env, data: unknown, status=200, extra: Reco
   for(const [k,v] of Object.entries(extra))h.set(k,v);
   return new Response(JSON.stringify(data),{status,headers:h});
 }
-function normalizePhone(input: unknown): string | null {
-  if(typeof input!=="string")return null;
-  const parsed=parsePhoneNumberFromString(input.trim(),"ID");
-  return parsed?.isValid()?parsed.number:null;
-}
-function phoneMetadata(phone:string) {
-  const parsed=parsePhoneNumberFromString(phone);
-  if(!parsed)return null;
-  return {
-    country:parsed.country ?? null,
-    countryCallingCode:parsed.countryCallingCode,
-    nationalNumber:parsed.nationalNumber,
-    numberType:parsed.getType() ?? null,
-    valid:parsed.isValid()
-  };
-}
+
 async function hmac(value:string,secret:string):Promise<string>{
   const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
   const sig=await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(value));
@@ -124,7 +109,7 @@ export default {
     const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET);
     const row=await env.DB.prepare("SELECT category,COUNT(*) AS total FROM reports WHERE phone_hash=? AND status='approved' GROUP BY category").bind(phoneHash).all<{category:string;total:number}>();
     const reports=row.results??[];
-    return json(request,env,{ok:true,result:{number:phone,metadata:phoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),identity:null,disclaimer:"Community reports are not proof of identity or wrongdoing."}});
+    return json(request,env,{ok:true,result:{number:phone,metadata:getPhoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),identity:null,disclaimer:"Community reports are not proof of identity or wrongdoing."}});
   }
 
   if(request.method==="POST"&&url.pathname==="/api/v1/reports"){
@@ -141,7 +126,7 @@ export default {
     if(description.length<10||description.length>500)return json(request,env,{ok:false,error:"Description must be 10-500 characters"},400);
     if(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/.test(description))return json(request,env,{ok:false,error:"Description contains unsupported characters"},400);
     const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET),id=crypto.randomUUID();
-    await env.DB.prepare("INSERT OR IGNORE INTO phone_index (phone_hash,country_calling_code) VALUES (?,?)").bind(phoneHash,phoneMetadata(phone)?.countryCallingCode??null).run();
+    await env.DB.prepare("INSERT OR IGNORE INTO phone_index (phone_hash,country_calling_code) VALUES (?,?)").bind(phoneHash,getPhoneMetadata(phone)?.countryCallingCode??null).run();
     await env.DB.prepare("INSERT INTO reports (id,phone_hash,category,description,status) VALUES (?,?,?,?,'pending')").bind(id,phoneHash,category,description).run();
     return json(request,env,{ok:true,report:{id,status:"pending"},message:"Report submitted for moderation."},201);
   }

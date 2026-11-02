@@ -23,7 +23,7 @@ npm run dev
 
 ## Local API
 1. Create a D1 database and update `database_id` in `wrangler.toml`.
-2. Apply schema: `npm run db:local`.
+2. Apply schema: `npm run db:local` (includes all numbered migrations).
 3. Set local secrets in `.dev.vars` (never commit it):
    ```
    PHONE_HASH_SECRET=replace-with-long-random-secret
@@ -48,7 +48,7 @@ npx wrangler secret put ADMIN_API_TOKEN`.
 - `GET /api/v1/lookup?phone=+62812...`
 - `POST /api/v1/reports` (Turnstile required; body: phone, category, description)
 - `GET /api/admin/reports?status=pending` (admin bearer authentication; statuses: pending, approved, rejected; max 100)
-- `POST /api/admin/reports/:id/moderate` (admin bearer authentication; approve or reject a pending report)
+- `POST /api/admin/reports/:id/moderate` (admin bearer authentication; approve or reject a pending report; rejection requires a 5-500 character reason)
 
 ## Privacy and safety
 - Phone numbers are normalized and HMAC-indexed; raw numbers are not stored in D1.
@@ -92,3 +92,10 @@ Rate limiting uses HMAC-derived request buckets rather than storing raw client I
 ## Automated checks
 
 Run `npm test` for phone-number normalization and numbering-metadata unit tests. CI runs typecheck, tests, and production build on pushes and pull requests.
+
+
+## Moderation audit
+
+- Migration `0003_moderation_reason.sql` adds a moderation reason to reports and the audit log.
+- Rejection requires a concise reason (5-500 characters). Approval may include an optional note.
+- Reasons are visible only in the authenticated admin dashboard and are never returned by public lookup.

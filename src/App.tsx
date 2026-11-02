@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import ReportForm from "./ReportForm";
 import AdminPanel from "./AdminPanel";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { normalizePhone } from "../shared/phone";
 import { Search, ShieldCheck, Phone, Flag, Users, ArrowUpRight, Menu, X, Globe2, LockKeyhole } from "lucide-react";
 
 type LookupResult = {
@@ -15,10 +15,7 @@ type LookupResult = {
 };
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
-function normalizePhone(value: string): string | null {
-  const parsed = parsePhoneNumberFromString(value.trim(), "ID");
-  return parsed?.isValid() ? parsed.number : null;
-}
+
 function App() {
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);

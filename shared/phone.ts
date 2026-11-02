@@ -1,4 +1,4 @@
-import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import { parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/max";
 
 export type PhoneMetadata = {
   country: string | null;
@@ -8,9 +8,9 @@ export type PhoneMetadata = {
   valid: boolean;
 };
 
-export function normalizePhone(value: unknown, defaultCountry = "ID"): string | null {
+export function normalizePhone(value: unknown, defaultCountry: CountryCode = "ID"): string | null {
   if (typeof value !== "string") return null;
-  const parsed = parsePhoneNumberFromString(value.trim(), defaultCountry as "ID");
+  const parsed = parsePhoneNumberFromString(value.trim(), defaultCountry);
   return parsed?.isValid() ? parsed.number : null;
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Send } from "lucide-react";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { normalizePhone } from "../shared/phone";
 
 declare global {
   interface Window {
@@ -13,10 +13,7 @@ declare global {
 const API = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "";
 
-function normalize(value: string): string | null {
-  const parsed = parsePhoneNumberFromString(value.trim(), "ID");
-  return parsed?.isValid() ? parsed.number : null;
-}
+
 
 export default function ReportForm() {
   const [phone, setPhone] = useState("");
@@ -54,7 +51,7 @@ export default function ReportForm() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
-    const normalized = normalize(phone);
+    const normalized = normalizePhone(phone);
     if (!API) return setMessage("API belum dikonfigurasi.");
     if (!normalized) return setMessage("Nomor telepon tidak valid.");
     if (!token) return setMessage("Selesaikan verifikasi keamanan terlebih dahulu.");

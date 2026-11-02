@@ -28,6 +28,7 @@ npm run dev
    ```
    PHONE_HASH_SECRET=replace-with-long-random-secret
    TURNSTILE_SECRET=your-turnstile-secret
+ADMIN_API_TOKEN=long-random-admin-token
    ```
 4. Start API: `npm run api:dev`.
 5. Set `VITE_API_BASE_URL=http://localhost:8787` in local `.env`.
@@ -37,7 +38,7 @@ npm run dev
 - Replace the placeholder database ID in `wrangler.toml`.
 - Set secrets with `npx wrangler secret put PHONE_HASH_SECRET` and `npx wrangler secret put TURNSTILE_SECRET
 npx wrangler secret put ADMIN_API_TOKEN`.
-- Configure a Turnstile widget and add its client-side token to the report form when that UI is implemented.
+- Configure a Turnstile widget and set `VITE_TURNSTILE_SITE_KEY` in the frontend build environment. The report form renders the challenge when this key is present.
 - Apply migration: `npm run db:remote`.
 - Deploy API: `npx wrangler deploy`.
 - Configure frontend API base URL and deploy the static site.

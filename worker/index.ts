@@ -62,6 +62,41 @@ async function rateLimit(request:Request,env:Env,scope:string,limit:number,windo
   const count=row?.request_count??limit+1;
   return {allowed:count<=limit,retryAfter:Math.max(1,windowStart+windowSeconds-now)};
 }
+async function readJsonObject(request: Request, maxBytes: number): Promise<{data?: Record<string, unknown>; error?: string}> {
+  if (!request.body) return { error: "Request body is required" };
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return { error: "Request body too large" };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { error: "Unable to read request body" };
+  }
+  try {
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { error: "JSON body must be an object" };
+    }
+    return { data: parsed as Record<string, unknown> };
+  } catch {
+    return { error: "Invalid JSON" };
+  }
+}
 function allowedOrigin(request:Request,env:Env):boolean{
   const origin=request.headers.get("Origin");
   if(!origin)return true;
@@ -90,7 +125,9 @@ export default {
   if(request.method==="POST"&&reportId){
     const auth=request.headers.get("Authorization")??"",token=auth.startsWith("Bearer ")?auth.slice(7):"";
     if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
-    let body:{action?:unknown};try{body=await request.json() as {action?:unknown};}catch{return json(request,env,{ok:false,error:"Invalid JSON"},400);}
+    const parsedBody=await readJsonObject(request,2048);
+    if(!parsedBody.data)return json(request,env,{ok:false,error:parsedBody.error??"Invalid JSON"},400);
+    const body=parsedBody.data;
     if(body.action!=="approved"&&body.action!=="rejected")return json(request,env,{ok:false,error:"Invalid action"},400);
     const row=await env.DB.prepare("SELECT id,status FROM reports WHERE id=?").bind(reportId).first<{id:string;status:string}>();
     if(!row)return json(request,env,{ok:false,error:"Report not found"},404);
@@ -116,9 +153,9 @@ export default {
     const rate=await rateLimit(request,env,"report",5,3600);
     if(!rate.allowed)return json(request,env,{ok:false,error:"Report limit reached. Try again later."},429,{"Retry-After":String(rate.retryAfter)});
     if(!(await verifyTurnstile(request.headers.get("X-Turnstile-Token"),env.TURNSTILE_SECRET)))return json(request,env,{ok:false,error:"Bot verification failed or is not configured"},403);
-    const length=Number(request.headers.get("Content-Length")??"0");
-    if(length>12000)return json(request,env,{ok:false,error:"Request body too large"},413);
-    let body:Record<string,unknown>;try{body=await request.json() as Record<string,unknown>;}catch{return json(request,env,{ok:false,error:"Invalid JSON"},400);}
+    const parsedBody=await readJsonObject(request,12000);
+    if(!parsedBody.data)return json(request,env,{ok:false,error:parsedBody.error??"Invalid JSON"},parsedBody.error==="Request body too large"?413:400);
+    const body=parsedBody.data;
     const phone=normalizePhone(body.phone),category=body.category;
     const description=typeof body.description==="string"?body.description.trim():"";
     const categories=["spam","scam","telemarketing","business","other"];

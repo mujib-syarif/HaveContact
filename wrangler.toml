@@ -19,7 +19,7 @@ migrations_dir = "migrations"
 [triggers]
 crons = ["17 3 * * *"]
 
-# Explicit production environment. Replace this ID with the production D1 database ID.
+# Explicit production environment, bound to the provisioned HaveContact D1 database.
 [env.production]
 workers_dev = true
 

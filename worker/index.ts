@@ -52,9 +52,9 @@ function safeEqual(a:string,b:string):boolean{
   for(let i=0;i<Math.max(x.length,y.length);i++)diff|=(x[i]??0)^(y[i]??0);
   return diff===0;
 }
-async function rateLimit(request:Request,env:Env,scope:string,limit:number,windowSeconds:number):Promise<RateResult>{
-  const ip=request.headers.get("CF-Connecting-IP")??"unknown";
-  const key=await hmac(`${scope}:${ip}`,env.PHONE_HASH_SECRET);
+async function rateLimit(request:Request,env:Env,scope:string,limit:number,windowSeconds:number,subject?:string):Promise<RateResult>{
+  const identity=subject??request.headers.get("CF-Connecting-IP")??"unknown";
+  const key=await hmac(`${scope}:${identity}`,env.PHONE_HASH_SECRET);
   const now=Math.floor(Date.now()/1000),windowStart=Math.floor(now/windowSeconds)*windowSeconds;
   const row=await env.DB.prepare(`INSERT INTO request_limits (bucket_key,window_start,request_count) VALUES (?, ?, 1)
     ON CONFLICT(bucket_key) DO UPDATE SET
@@ -133,7 +133,10 @@ export default {
     if(!phone||typeof category!=="string"||!categories.includes(category))return json(request,env,{ok:false,error:"Invalid phone number or category"},400);
     if(description.length<10||description.length>500)return json(request,env,{ok:false,error:"Description must be 10-500 characters"},400);
     if(hasUnsupportedControlCharacters(description))return json(request,env,{ok:false,error:"Description contains unsupported characters"},400);
-    const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET),id=crypto.randomUUID();
+    const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET);
+    const phoneRate=await rateLimit(request,env,"report-phone",3,86400,phoneHash);
+    if(!phoneRate.allowed)return json(request,env,{ok:false,error:"This number has reached its community report limit. Try again later."},429,{"Retry-After":String(phoneRate.retryAfter)});
+    const id=crypto.randomUUID();
     await createPendingReport(env.DB,{id,phoneHash,callingCode:getPhoneMetadata(phone)?.countryCallingCode??null,category,description});
     return json(request,env,{ok:true,report:{id,status:"pending"},message:"Report submitted for moderation."},201);
   }

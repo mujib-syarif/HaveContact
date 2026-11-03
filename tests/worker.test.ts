@@ -3,7 +3,7 @@ import worker from "../worker/index";
 
 function makeEnv(overrides: Record<string, unknown> = {}, rateCount = 1) {
   const db = {
-    prepare: vi.fn(() => ({
+    prepare: vi.fn((sql: string) => ({
       bind: vi.fn(() => ({
         all: vi.fn(async () => ({ results: [] })),
         first: vi.fn(async () => sql.includes("SELECT id,status FROM reports")

@@ -37,3 +37,11 @@ export async function createPendingReport(
       .bind(input.id, input.phoneHash, input.category, input.description)
   ]);
 }
+export async function removeReport(db: D1Database, reportId: string): Promise<boolean> {
+  const results = await db.batch([
+    db.prepare("DELETE FROM moderation_logs WHERE report_id=?").bind(reportId),
+    db.prepare("DELETE FROM reports WHERE id=?").bind(reportId),
+    db.prepare("DELETE FROM phone_index WHERE NOT EXISTS (SELECT 1 FROM reports WHERE reports.phone_hash=phone_index.phone_hash)")
+  ]);
+  return (results[1]?.meta?.changes ?? 0) === 1;
+}

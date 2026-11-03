@@ -11,7 +11,6 @@ updates:
           - "react"
           - "react-dom"
           - "@types/react"
-          - "@types/react"
           - "@types/react-dom"
       build-tooling:
         patterns:
@@ -34,5 +33,3 @@ updates:
       github-actions:
         patterns:
           - "*"
-    labels:
-      - "dependencies"

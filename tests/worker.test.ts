@@ -6,7 +6,9 @@ function makeEnv(overrides: Record<string, unknown> = {}, rateCount = 1) {
     prepare: vi.fn(() => ({
       bind: vi.fn(() => ({
         all: vi.fn(async () => ({ results: [] })),
-        first: vi.fn(async () => ({ request_count: rateCount })),
+        first: vi.fn(async () => sql.includes("SELECT id,status FROM reports")
+          ? { id: "11111111-1111-4111-8111-111111111111", status: "pending" }
+          : { request_count: rateCount }),
         run: vi.fn(async () => ({ meta: { changes: 1 } }))
       }))
     })),
@@ -137,6 +139,64 @@ describe("HaveContact Worker API", () => {
 
     expect(response.status).toBe(429);
     expect(response.headers.get("Retry-After")).toBeTruthy();
+    expect(db.prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it("approves a pending report and records the moderation batch", async () => {
+    const { env, db } = makeEnv();
+    const response = await worker.fetch(
+      new Request("https://api.example/api/admin/reports/11111111-1111-4111-8111-111111111111/moderate", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test-admin-token",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ action: "approved" })
+      }),
+      env as never
+    );
+
+    expect(response.status).toBe(200);
+    await expect(json(response)).resolves.toMatchObject({
+      ok: true,
+      report: { status: "approved", reason: null }
+    });
+    expect(db.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires a meaningful reason before rejecting a report", async () => {
+    const { env, db } = makeEnv();
+    const response = await worker.fetch(
+      new Request("https://api.example/api/admin/reports/11111111-1111-4111-8111-111111111111/moderate", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test-admin-token",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ action: "rejected", reason: "no" })
+      }),
+      env as never
+    );
+
+    expect(response.status).toBe(400);
+    await expect(json(response)).resolves.toMatchObject({
+      ok: false,
+      error: "A rejection reason of at least 5 characters is required"
+    });
+    expect(db.batch).not.toHaveBeenCalled();
+  });
+
+  it("lists pending reports only after admin authentication", async () => {
+    const { env, db } = makeEnv();
+    const response = await worker.fetch(
+      new Request("https://api.example/api/admin/reports?status=pending", {
+        headers: { Authorization: "Bearer test-admin-token" }
+      }),
+      env as never
+    );
+
+    expect(response.status).toBe(200);
+    await expect(json(response)).resolves.toMatchObject({ ok: true, reports: [] });
     expect(db.prepare).toHaveBeenCalledTimes(1);
   });
 

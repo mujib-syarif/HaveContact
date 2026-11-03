@@ -85,7 +85,7 @@ MIT - see LICENSE.
 5. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`.
 6. Build and deploy the frontend and Worker. Test health, lookup, report submission, and moderation with a non-production test number before public launch.
 
-Rate limiting uses HMAC-derived request buckets rather than storing raw client IP addresses. It is a baseline safeguard, not a substitute for Cloudflare WAF or managed rate limiting on a public launch. Report creation and moderation status/audit writes use D1 batches so related database changes commit or roll back together.
+Rate limiting uses HMAC-derived request buckets rather than storing raw client IP addresses. It is a baseline safeguard, not a substitute for Cloudflare WAF or managed rate limiting on a public launch. Lookup is limited to 40 requests per IP per minute, report submission to 5 per IP per hour and 3 per normalized phone number per 24 hours, and admin API traffic to 20 requests per IP per minute. Report creation and moderation status/audit writes use D1 batches so related database changes commit or roll back together.
 
 
 ## Automated checks

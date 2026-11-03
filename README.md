@@ -70,7 +70,7 @@ MIT - see LICENSE.
 ## Recent implementation notes
 
 - Phone metadata uses `libphonenumber-js` numbering-plan data. It reports country/region and number type where the numbering plan can determine them; it does not identify a subscriber.
-- Migration `0002_request_limits.sql` creates privacy-preserving hashed rate-limit buckets; migration `0003_moderation_reason.sql` adds moderation audit reasons.
+- Migration `0002_request_limits.sql` creates privacy-preserving hashed rate-limit buckets; migration `0003_moderation_reason.sql` adds moderation audit reasons; migration `0004_query_indexes.sql` adds indexes for moderation queue and audit lookups.
 - Configure `ALLOWED_ORIGINS` as a comma-separated list of exact production frontend origins in Worker variables. Do not use a wildcard in production.
 - Admin dashboard: open `/admin` on the frontend and enter the server-side `ADMIN_API_TOKEN`. The token stays in page memory and must never be configured as a `VITE_*` variable.
 - The dashboard and report form require the deployed API, D1 migrations, Turnstile site/secret keys, and allowed-origin configuration before they can operate end-to-end.
@@ -79,7 +79,7 @@ MIT - see LICENSE.
 ## Security and deployment checklist
 
 1. Create the Cloudflare D1 database and replace the placeholder database ID in `wrangler.toml`.
-2. Apply all numbered migrations, including `0002_request_limits.sql` and `0003_moderation_reason.sql`, using `npx wrangler d1 migrations apply havecontact-db --remote`.
+2. Apply all numbered migrations, including `0002_request_limits.sql`, `0003_moderation_reason.sql`, and `0004_query_indexes.sql`, using `npx wrangler d1 migrations apply havecontact-db --remote`.
 3. Set Worker secrets: `PHONE_HASH_SECRET`, `TURNSTILE_SECRET`, and `ADMIN_API_TOKEN`.
 4. Set the Worker variable `ALLOWED_ORIGINS` to the exact deployed frontend origin(s), comma-separated. The API intentionally does not send wildcard CORS permission.
 5. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`.

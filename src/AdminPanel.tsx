@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { LockKeyhole, RefreshCw, ShieldCheck, LogOut, Check, X } from "lucide-react";
 
 type Report = { id: string; category: string; description: string; status: string; created_at: string; moderation_reason?: string | null };
-type Feedback = { id: string; request_type: "correction" | "abuse"; details: string; status: string; created_at: string };
+type Feedback = { id: string; phone_fingerprint: string; request_type: "correction" | "abuse"; details: string; status: string; created_at: string };
 const API = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
 export default function AdminPanel() {
@@ -75,7 +75,7 @@ export default function AdminPanel() {
           </div>
           <div className="mt-4 space-y-3">{feedback.length===0?<div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-hc-muted">Belum ada masukan yang menunggu.</div>:feedback.map(item=><article key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2"><span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-wide text-hc-lime">{item.request_type==="abuse"?"Penyalahgunaan":"Koreksi"}</span><time className="text-[11px] text-hc-muted">{new Date(item.created_at).toLocaleString()}</time></div>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-white/90">{item.details}</p><p className="mt-2 break-all text-[10px] text-hc-muted">Feedback ID: {item.id}</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-white/90">{item.details}</p><p className="mt-2 text-[10px] text-hc-muted">Target fingerprint: <span className="font-mono text-white/70">{item.phone_fingerprint}</span></p><p className="mt-1 break-all text-[10px] text-hc-muted">Feedback ID: {item.id}</p>
             <div className="mt-4 flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void reviewFeedback(item.id,"resolved")} className="rounded-xl border border-hc-lime/30 bg-hc-lime/10 px-3 py-2 text-xs font-semibold text-hc-lime">Mark reviewed</button><button disabled={busy} onClick={()=>void reviewFeedback(item.id,"rejected")} className="rounded-xl border border-rose-300/20 bg-rose-300/5 px-3 py-2 text-xs font-semibold text-rose-200">Dismiss</button></div>
           </article>)}</div>
         </section>

@@ -18,3 +18,13 @@ migrations_dir = "migrations"
 
 [triggers]
 crons = ["17 3 * * *"]
+
+# Explicit production environment. Replace this ID with the production D1 database ID.
+[env.production.vars]
+APP_ENV = "production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "havecontact-db"
+database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_ID"
+migrations_dir = "migrations"

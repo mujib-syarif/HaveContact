@@ -5,14 +5,35 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      build-tooling:
+        patterns:
+          - "vite"
+          - "typescript"
+          - "postcss"
+          - "tailwindcss"
+          - "wrangler"
+          - "vitest"
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
     labels:
       - "dependencies"
-      - "security"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
-      - "security"

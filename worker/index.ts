@@ -231,6 +231,25 @@ export default {
     return json(request,env,{ok:true,result:{number:phone,metadata:getPhoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),labels,businessProfiles:(profileRows.results??[]).map(item=>({name:item.business_name,website:item.website,publicEmail:item.public_email,verified:true,verifiedAt:item.reviewed_at})),identity:null,disclaimer:"Community labels are user-submitted and moderated; they do not establish personal identity or wrongdoing."}});
   }
 
+  if(request.method==="POST"&&url.pathname==="/api/v1/identity-claims"){
+    const rate=await rateLimit(request,env,"identity-claim",2,86400);
+    if(!rate.allowed)return json(request,env,{ok:false,error:"Too many submissions"},429);
+    if(!(await verifyTurnstile(request.headers.get("X-Turnstile-Token"),env.TURNSTILE_SECRET)))return json(request,env,{ok:false,error:"Verification failed"},403);
+    const parsed=await readJsonObject(request,6000);
+    if(!parsed.data)return json(request,env,{ok:false,error:"Invalid request"},400);
+    const body=parsed.data;
+    const phone=normalizePhone(body.phone);
+    const name=typeof body.displayName==="string"?body.displayName.trim():"";
+    const profile=typeof body.publicProfileUrl==="string"?body.publicProfileUrl.trim():"";
+    let valid=false;
+    try{const u=new URL(profile);valid=u.protocol==="https:"&&u.hostname.includes(".");}catch{}
+    if(!phone||name.length<2||name.length>80||!valid||body.consentPublic!==true)return json(request,env,{ok:false,error:"Invalid identity claim"},400);
+    const hash=await hmac(phone,env.PHONE_HASH_SECRET);
+    const id=crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO identity_claims (id,phone_hash,display_name,public_profile_url,consent_public) VALUES (?,?,?,?,1)").bind(id,hash,name,profile).run();
+    return json(request,env,{ok:true,claim:{id,status:"pending"}},201);
+  }
+
   if(request.method==="POST"&&url.pathname==="/api/v1/business-claims"){
     const rate=await rateLimit(request,env,"business-claim",3,3600);
     if(!rate.allowed)return json(request,env,{ok:false,error:"Too many claim submissions. Try again later."},429,{"Retry-After":String(rate.retryAfter)});

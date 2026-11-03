@@ -2,6 +2,7 @@ import { getPhoneMetadata, normalizePhone } from "../shared/phone";
 import { readJsonObject } from "./request";
 import { createPendingReport, persistModeration } from "./writes";
 import { hasUnsupportedControlCharacters } from "./validation";
+import { cleanupExpiredOperationalData } from "./maintenance";
 
 interface Env {
   DB: D1Database;
@@ -141,5 +142,8 @@ export default {
     return json(request,env,{ok:true,report:{id,status:"pending"},message:"Report submitted for moderation."},201);
   }
   return json(request,env,{ok:false,error:"Not found"},404);
+ },
+ scheduled(_controller:{cron:string;scheduledTime:number},env:Env,ctx:{waitUntil(promise:Promise<unknown>):void}):void {
+  ctx.waitUntil(cleanupExpiredOperationalData(env.DB));
  }
 };

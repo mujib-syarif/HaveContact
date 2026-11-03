@@ -22,7 +22,7 @@
   <p class="note">HaveContact dirancang untuk menampilkan metadata nomor dan ringkasan laporan komunitas, bukan untuk mengungkap identitas pribadi pemilik nomor.</p>
   <h2>1. Informasi yang kami proses</h2>
   <p>Saat Anda mencari nomor, layanan memproses nomor yang dimasukkan untuk normalisasi, metadata numbering plan, dan pencocokan laporan komunitas. Nomor mentah tidak disimpan sebagai kolom nomor di database laporan. Sistem membuat indeks HMAC menggunakan secret server agar laporan untuk nomor yang sama dapat dikelompokkan tanpa menyimpan nomor mentah.</p>
-  <p>Jika Anda mengirim laporan, kami memproses nomor terkait, kategori, deskripsi yang Anda tulis, waktu pengiriman, status moderasi, serta ID referensi acak. Jangan masukkan nama lengkap, alamat, informasi akun, data keuangan, atau informasi pribadi sensitif ke dalam deskripsi.</p>
+  <p>Jika Anda mengirim laporan, kami memproses nomor terkait, kategori, deskripsi yang Anda tulis, waktu pengiriman, status moderasi, serta ID referensi acak. Jika Anda mengirim koreksi atau laporan penyalahgunaan, kami memproses nomor terkait dalam bentuk indeks HMAC, jenis masukan, detail, waktu pengiriman, dan status peninjauan. Masukan tersebut hanya tersedia untuk admin dan tidak ditampilkan di hasil pencarian publik. Jangan masukkan nama lengkap, alamat, informasi akun, data keuangan, atau informasi pribadi sensitif ke dalam deskripsi.</p>
   <h2>2. Informasi yang ditampilkan</h2>
   <p>Pencarian publik hanya menampilkan metadata nomor yang tersedia dari numbering plan dan agregat kategori serta jumlah laporan yang telah disetujui moderator. Identitas pelanggan, nama kontak, isi laporan yang masih menunggu moderasi, dan alasan moderasi tidak ditampilkan kepada publik. Laporan komunitas bukan bukti identitas atau bukti bahwa seseorang melakukan pelanggaran.</p>
   <h2>3. Verifikasi dan penyedia layanan</h2>
@@ -32,7 +32,8 @@
     <li>Laporan menunggu moderasi dan laporan yang ditolak dihapus otomatis setelah 30 hari.</li>
     <li>Laporan yang disetujui dihapus otomatis setelah 180 hari.</li>
     <li>Catatan audit moderasi disimpan maksimal 365 hari, dengan penghapusan terkait saat laporan induk dihapus.</li>
-    <li>Bucket pembatasan permintaan yang kedaluwarsa dibersihkan setelah 7 hari dan catatan penyalahgunaan setelah 90 hari.</li>
+    <li>Bucket pembatasan permintaan yang kedaluwarsa dibersihkan setelah 7 hari.</li>
+    <li>Catatan penyalahgunaan dan masukan koreksi/laporan yang masuk melalui formulir privat dihapus setelah 90 hari.</li>
   </ul>
   <p>Jadwal tersebut merupakan konfigurasi retensi aplikasi dan dapat berubah jika diperlukan untuk keamanan, kepatuhan, atau operasional.</p>
   <h2>5. Penghapusan laporan</h2>

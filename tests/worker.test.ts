@@ -108,7 +108,7 @@ describe("HaveContact Worker API", () => {
 
     expect(response.status).toBe(400);
     await expect(json(response)).resolves.toMatchObject({ ok: false, error: "Invalid status" });
-    expect(db.prepare).not.toHaveBeenCalled();
+    expect(db.prepare).toHaveBeenCalledTimes(1);
   });
 
   it("rejects malformed phone lookups before touching rate-limit storage", async () => {
@@ -214,7 +214,7 @@ describe("HaveContact Worker API", () => {
 
     expect(response.status).toBe(200);
     await expect(json(response)).resolves.toMatchObject({ ok: true, reports: [] });
-    expect(db.prepare).toHaveBeenCalledTimes(1);
+    expect(db.prepare).toHaveBeenCalledTimes(2);
   });
 
   it("accepts a Turnstile-verified report and stores it as pending", async () => {

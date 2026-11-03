@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import worker from "../worker/index";
 
-function makeEnv(overrides: Record<string, unknown> = {}) {
+function makeEnv(overrides: Record<string, unknown> = {}, rateCount = 1) {
   const db = {
     prepare: vi.fn(() => ({
       bind: vi.fn(() => ({
         all: vi.fn(async () => ({ results: [] })),
-        first: vi.fn(async () => null),
+        first: vi.fn(async () => ({ request_count: rateCount })),
         run: vi.fn(async () => ({ meta: { changes: 1 } }))
       }))
     })),
@@ -102,6 +102,42 @@ describe("HaveContact Worker API", () => {
     expect(response.status).toBe(400);
     await expect(json(response)).resolves.toMatchObject({ ok: false, error: "Invalid phone number" });
     expect(db.prepare).not.toHaveBeenCalled();
+  });
+
+  it("returns privacy-safe lookup metadata when no community reports exist", async () => {
+    const { env, db } = makeEnv();
+    const response = await worker.fetch(
+      new Request("https://api.example/api/v1/lookup?phone=%2B6281234567890", {
+        headers: { "CF-Connecting-IP": "203.0.113.10" }
+      }),
+      env as never
+    );
+    const payload = await json(response);
+    const result = payload.result as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(result).toMatchObject({
+      number: "+6281234567890",
+      status: "no_community_reports",
+      reportCount: 0,
+      categories: [],
+      identity: null
+    });
+    expect(db.prepare).toHaveBeenCalledTimes(2);
+  });
+
+  it("enforces lookup rate limits and returns Retry-After", async () => {
+    const { env, db } = makeEnv({}, 41);
+    const response = await worker.fetch(
+      new Request("https://api.example/api/v1/lookup?phone=%2B6281234567890", {
+        headers: { "CF-Connecting-IP": "203.0.113.11" }
+      }),
+      env as never
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeTruthy();
+    expect(db.prepare).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when required service configuration is missing", async () => {

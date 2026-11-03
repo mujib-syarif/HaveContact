@@ -45,7 +45,7 @@ npm run dev
 ## API
 - `GET /api/health`
 - `GET /api/v1/lookup?phone=+62812...`
-- `POST /api/v1/reports` (Turnstile required; body: phone, category, description)
+- `POST /api/v1/reports` (Turnstile required; body: phone, category, description; returns a report reference ID for follow-up)
 - `GET /api/admin/reports?status=pending` (admin bearer authentication; statuses: pending, approved, rejected; max 100)
 - `POST /api/admin/reports/:id/moderate` (admin bearer authentication; approve or reject a pending report; rejection requires a 5-500 character reason)
 

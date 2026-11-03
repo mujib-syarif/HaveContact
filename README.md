@@ -63,7 +63,7 @@ The repository includes a manual deployment workflow at `.github/workflows/deplo
 1. Create the Cloudflare Pages project once: `npx wrangler pages project create YOUR_PAGES_PROJECT --production-branch main`.
 2. In GitHub, open **Settings > Environments** and create an environment named `production`.
 3. Add these environment **secrets**:
-   - `CLOUDFLARE_API_TOKEN` (Cloudflare token with Workers Scripts Edit, D1 Edit, and Pages Edit permissions)
+   - `CLOUDFLARE_API_TOKEN` (Cloudflare token with Workers Scripts Edit, D1 Edit, Pages Edit, and Account Settings Read permissions)
    - `CLOUDFLARE_ACCOUNT_ID`
    - `PHONE_HASH_SECRET` (at least 32 random characters)
    - `TURNSTILE_SECRET`
@@ -146,7 +146,7 @@ Run `npm test` for phone-number normalization, numbering metadata, bounded JSON 
 - Pending and rejected reports expire after 30 days; approved reports expire after 180 days.
 - Moderation audit records expire after 365 days; records attached to an expired report are removed first.
 - Orphaned phone hashes, expired HMAC rate-limit buckets older than 7 days, and abuse-event records older than 90 days are pruned automatically.
-- Retention is enforced by the daily scheduled Worker cleanup. Publish this policy clearly before collecting real reports; it is not a substitute for a verified user-requested correction or removal process.
+- Retention is enforced by the daily scheduled Worker cleanup. Users can also remove a report immediately using its private reference ID; possession of that ID is the authorization mechanism, not legal identity verification.
 
 
 ### Production secret requirements

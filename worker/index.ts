@@ -1,5 +1,6 @@
 import { getPhoneMetadata, normalizePhone } from "../shared/phone";
 import { readJsonObject } from "./request";
+import { createPendingReport, persistModeration } from "./writes";
 
 interface Env {
   DB: D1Database;
@@ -102,11 +103,8 @@ export default {
     const row=await env.DB.prepare("SELECT id,status FROM reports WHERE id=?").bind(reportId).first<{id:string;status:string}>();
     if(!row)return json(request,env,{ok:false,error:"Report not found"},404);
     if(row.status!=="pending")return json(request,env,{ok:false,error:"Report is no longer pending"},409);
-    const batch=await env.DB.batch([
-      env.DB.prepare("UPDATE reports SET status=?,moderation_reason=?,moderated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='pending'").bind(body.action,reason||null,reportId),
-      env.DB.prepare("INSERT INTO moderation_logs (id,report_id,action,moderator_ref,reason) SELECT ?,?,?, 'admin-api',? WHERE changes()=1").bind(crypto.randomUUID(),reportId,body.action,reason||null)
-    ]);
-    if((batch[0]?.meta?.changes??0)!==1)return json(request,env,{ok:false,error:"Report changed; refresh the queue"},409);
+    const changed=await persistModeration(env.DB,{reportId,action:body.action,reason:reason||null,logId:crypto.randomUUID()});
+    if(!changed)return json(request,env,{ok:false,error:"Report changed; refresh the queue"},409);
     return json(request,env,{ok:true,report:{id:reportId,status:body.action,reason:reason||null}});
   }
 
@@ -135,10 +133,7 @@ export default {
     if(description.length<10||description.length>500)return json(request,env,{ok:false,error:"Description must be 10-500 characters"},400);
     if(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/.test(description))return json(request,env,{ok:false,error:"Description contains unsupported characters"},400);
     const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET),id=crypto.randomUUID();
-    await env.DB.batch([
-      env.DB.prepare("INSERT OR IGNORE INTO phone_index (phone_hash,country_calling_code) VALUES (?,?)").bind(phoneHash,getPhoneMetadata(phone)?.countryCallingCode??null),
-      env.DB.prepare("INSERT INTO reports (id,phone_hash,category,description,status) VALUES (?,?,?,?,'pending')").bind(id,phoneHash,category,description)
-    ]);
+    await createPendingReport(env.DB,{id,phoneHash,callingCode:getPhoneMetadata(phone)?.countryCallingCode??null,category,description});
     return json(request,env,{ok:true,report:{id,status:"pending"},message:"Report submitted for moderation."},201);
   }
   return json(request,env,{ok:false,error:"Not found"},404);

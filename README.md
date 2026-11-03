@@ -10,7 +10,7 @@ Privacy-first, community-powered phone number intelligence.
 - Report submission requires Turnstile verification and is queued for moderation.
 
 ## Stack
-React 18, TypeScript, Vite, Tailwind CSS, Cloudflare Workers, D1, Wrangler.
+React 19, TypeScript, Vite 8, Tailwind CSS, Cloudflare Workers, D1, Wrangler.
 
 ## Requirements
 Node.js 20.19+ or 22.12+.
@@ -38,20 +38,20 @@ npm run dev
 The Worker has a separate `production` environment. Always use the `--env production` commands below for production secrets, migrations, and deployment.
 
 1. The production D1 database is already provisioned as `havecontact-db`; its ID is configured in both bindings in `wrangler.toml`.
-3. Configure a Turnstile widget for the frontend hostname. Keep its site key for the frontend and its secret key for the Worker.
-4. Set production Worker secrets:
+2. Configure a Turnstile widget for the frontend hostname. Keep its site key for the frontend and its secret key for the Worker.
+3. Set production Worker secrets:
    ```bash
    npx wrangler secret put PHONE_HASH_SECRET --env production
    npx wrangler secret put TURNSTILE_SECRET --env production
    npx wrangler secret put ADMIN_API_TOKEN --env production
    ```
    Generate independent random values. `PHONE_HASH_SECRET` and `ADMIN_API_TOKEN` must each contain at least 32 characters.
-5. In the Cloudflare dashboard, open the production Worker environment's **Settings > Variables and Secrets** and set `ALLOWED_ORIGINS` to the exact HTTPS frontend origin(s), comma-separated, with no wildcard, path, or trailing slash. Example: `https://havecontact.pages.dev`.
-6. Apply production migrations: `npm run db:remote`.
-7. Run a deployment bundle check: `npm run deploy:api:dry-run`.
-8. Deploy the API: `npm run deploy:api`.
-9. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`, then deploy the static frontend.
-10. Verify `GET https://YOUR_WORKER_DOMAIN/api/ready` returns HTTP 200 and `{"ok":true,"ready":true}` before testing user flows.
+4. In the Cloudflare dashboard, open the production Worker environment's **Settings > Variables and Secrets** and set `ALLOWED_ORIGINS` to the exact HTTPS frontend origin(s), comma-separated, with no wildcard, path, or trailing slash. Example: `https://havecontact.pages.dev`.
+5. Apply production migrations: `npm run db:remote`.
+6. Run a deployment bundle check: `npm run deploy:api:dry-run`.
+7. Deploy the API: `npm run deploy:api`.
+8. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`, then deploy the static frontend.
+9. Verify `GET https://YOUR_WORKER_DOMAIN/api/ready` returns HTTP 200 and `{"ok":true,"ready":true}` before testing user flows.
 
 The production Worker fails closed unless D1, all three secrets, and a non-empty HTTPS-only exact-origin allowlist are configured. `/api/health` is a liveness endpoint; use `/api/ready` for deployment readiness. Never expose `ADMIN_API_TOKEN` or any Worker secret through a `VITE_*` variable.
 

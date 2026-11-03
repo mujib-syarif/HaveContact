@@ -1,6 +1,6 @@
 import { getPhoneMetadata, normalizePhone } from "../shared/phone";
 import { readJsonObject } from "./request";
-import { createPendingReport, persistModeration } from "./writes";
+import { createPendingReport, persistModeration, removeReport } from "./writes";
 import { hasUnsupportedControlCharacters } from "./validation";
 import { cleanupExpiredOperationalData } from "./maintenance";
 
@@ -123,6 +123,17 @@ export default {
     return json(request,env,{ok:true,report:{id:reportId,status:body.action,reason:reason||null}});
   }
 
+  if(request.method==="POST"&&url.pathname==="/api/v1/reports/remove"){
+    const rate=await rateLimit(request,env,"report-removal",3,3600);
+    if(!rate.allowed)return json(request,env,{ok:false,error:"Too many removal attempts. Please try again later."},429,{"Retry-After":String(rate.retryAfter)});
+    const parsedBody=await readJsonObject(request,2048);
+    if(!parsedBody.data)return json(request,env,{ok:false,error:parsedBody.error??"Invalid JSON"},400);
+    const referenceId=typeof parsedBody.data.referenceId==="string"?parsedBody.data.referenceId.trim():"";
+    if(!/^[a-f0-9-]{36}$/i.test(referenceId))return json(request,env,{ok:false,error:"Invalid report reference"},400);
+    const removed=await removeReport(env.DB,referenceId);
+    if(!removed)return json(request,env,{ok:false,error:"Report not found or already removed"},404);
+    return json(request,env,{ok:true,message:"Report and its moderation history have been removed."});
+  }
   if(request.method==="GET"&&url.pathname==="/api/v1/lookup"){
     const phone=normalizePhone(url.searchParams.get("phone"));
     if(!phone)return json(request,env,{ok:false,error:"Invalid phone number"},400);

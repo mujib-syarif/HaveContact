@@ -22,7 +22,11 @@ function cors(request: Request, env: Env): Headers {
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
     "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "Cache-Control": "no-store"
   });
   if (origin && allowed.includes(origin)) h.set("Access-Control-Allow-Origin", origin);

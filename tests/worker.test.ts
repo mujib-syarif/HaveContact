@@ -77,7 +77,24 @@ describe("HaveContact Worker API", () => {
 
     expect(response.status).toBe(401);
     await expect(json(response)).resolves.toMatchObject({ ok: false, error: "Unauthorized" });
-    expect(db.prepare).not.toHaveBeenCalled();
+    expect(db.prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it("rate limits admin requests before checking credentials", async () => {
+    const { env, db } = makeEnv({}, 21);
+    const response = await worker.fetch(
+      new Request("https://api.example/api/admin/reports", {
+        headers: { Authorization: "Bearer wrong-token", "CF-Connecting-IP": "203.0.113.40" }
+      }),
+      env as never
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeTruthy();
+    await expect(json(response)).resolves.toMatchObject({
+      ok: false,
+      error: "Too many admin requests. Please wait before trying again."
+    });
+    expect(db.prepare).toHaveBeenCalledTimes(1);
   });
 
   it("rejects an invalid moderation queue status before querying D1", async () => {

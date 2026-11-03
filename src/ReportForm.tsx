@@ -7,6 +7,7 @@ declare global {
     turnstile?: {
       render: (node: HTMLElement, options: { sitekey: string; callback: (token: string) => void; "expired-callback"?: () => void }) => string;
       remove: (id: string) => void;
+      reset: (id?: string) => void;
     };
   }
 }
@@ -23,14 +24,14 @@ export default function ReportForm() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const captcha = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!SITE_KEY || !captcha.current) return;
-    let widgetId: string | undefined;
     let cancelled = false;
     const render = () => {
       if (!cancelled && window.turnstile && captcha.current) {
-        widgetId = window.turnstile.render(captcha.current, {
+        widgetId.current = window.turnstile.render(captcha.current, {
           sitekey: SITE_KEY,
           callback: setToken,
           "expired-callback": () => setToken("")
@@ -45,7 +46,11 @@ export default function ReportForm() {
       script.onload = render;
       document.head.appendChild(script);
     }
-    return () => { cancelled = true; if (widgetId) window.turnstile?.remove(widgetId); };
+    return () => {
+      cancelled = true;
+      if (widgetId.current) window.turnstile?.remove(widgetId.current);
+      widgetId.current = undefined;
+    };
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -68,7 +73,11 @@ export default function ReportForm() {
       setPhone(""); setDescription(""); setToken("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Terjadi kesalahan jaringan.");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+      setToken("");
+      if (widgetId.current) window.turnstile?.reset(widgetId.current);
+    }
   }
 
   return <form onSubmit={submit} className="glass grid gap-4 rounded-3xl p-5 sm:p-8">

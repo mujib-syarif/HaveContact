@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createPendingReport, persistModeration } from "../worker/writes";
+import { createPendingReport, persistModeration, removeReport } from "../worker/writes";
 
 function fakeDatabase(changes = 1) {
   const statements: Array<{ sql: string; values: unknown[] }> = [];
@@ -60,4 +60,15 @@ describe("atomic D1 writes", () => {
     expect(mock.statements[0].sql).toContain("INSERT OR IGNORE INTO phone_index");
     expect(mock.statements[1].sql).toContain("INSERT INTO reports");
   });
+  it("removes report content and moderation history atomically", async () => {
+    const mock = fakeDatabase();
+    const removed = await removeReport(mock.db, "report-id");
+    expect(removed).toBe(true);
+    expect(mock.batch).toHaveBeenCalledTimes(1);
+    expect(mock.statements).toHaveLength(3);
+    expect(mock.statements[0].sql).toContain("DELETE FROM moderation_logs");
+    expect(mock.statements[1].sql).toContain("DELETE FROM reports");
+    expect(mock.statements[2].sql).toContain("DELETE FROM phone_index");
+  });
+
 });

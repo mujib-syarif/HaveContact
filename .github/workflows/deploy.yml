@@ -1,0 +1,87 @@
+name: Deploy HaveContact to Cloudflare
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: havecontact-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate deployment configuration
+        env:
+          WORKER_BASE_URL: ${{ vars.WORKER_BASE_URL }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+          PAGES_PROJECT_NAME: ${{ vars.PAGES_PROJECT_NAME }}
+          ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          PHONE_HASH_SECRET: ${{ secrets.PHONE_HASH_SECRET }}
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -eu
+          test -n "$WORKER_BASE_URL"
+          test -n "$FRONTEND_URL"
+          test -n "$PAGES_PROJECT_NAME"
+          test -n "$ALLOWED_ORIGINS"
+          test -n "$VITE_TURNSTILE_SITE_KEY"
+          test -n "$PHONE_HASH_SECRET"
+          test -n "$TURNSTILE_SECRET"
+          test -n "$ADMIN_API_TOKEN"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          node -e 'for (const value of process.argv.slice(1)) { const url = new URL(value); if (url.protocol !== "https:" || url.origin !== value) process.exit(1); }' "$WORKER_BASE_URL" "$FRONTEND_URL"
+          test "$ALLOWED_ORIGINS" = "$FRONTEND_URL"
+      - name: Install dependencies and verify
+        run: |
+          npm install
+          npm audit --audit-level=moderate
+          npm run typecheck
+          npm run typecheck:worker
+          npm test
+      - name: Configure production Worker secrets
+        env:
+          PHONE_HASH_SECRET: ${{ secrets.PHONE_HASH_SECRET }}
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
+        run: |
+          printf '%s' "$PHONE_HASH_SECRET" | npx wrangler secret put PHONE_HASH_SECRET --env production
+          printf '%s' "$TURNSTILE_SECRET" | npx wrangler secret put TURNSTILE_SECRET --env production
+          printf '%s' "$ADMIN_API_TOKEN" | npx wrangler secret put ADMIN_API_TOKEN --env production
+          printf '%s' "$ALLOWED_ORIGINS" | npx wrangler secret put ALLOWED_ORIGINS --env production
+      - name: Apply production D1 migrations
+        run: npm run db:remote
+      - name: Deploy Cloudflare Worker
+        run: npm run deploy:api
+      - name: Verify Worker readiness
+        env:
+          WORKER_BASE_URL: ${{ vars.WORKER_BASE_URL }}
+        run: |
+          curl --fail --silent --show-error "$WORKER_BASE_URL/api/ready" | node -e 'let data=""; process.stdin.on("data", chunk => data += chunk).on("end", () => { const result = JSON.parse(data); if (!result.ok || result.ready !== true) process.exit(1); console.log("Worker readiness check passed"); });'
+      - name: Build frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.WORKER_BASE_URL }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+        run: npm run build
+      - name: Deploy Cloudflare Pages
+        env:
+          PAGES_PROJECT_NAME: ${{ vars.PAGES_PROJECT_NAME }}
+        run: npx wrangler pages deploy dist --project-name "$PAGES_PROJECT_NAME" --branch main
+      - name: Verify frontend deployment
+        env:
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
+        run: curl --fail --silent --show-error "$FRONTEND_URL" --output /dev/null

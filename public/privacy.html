@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="index,follow">
+  <meta name="description" content="Kebijakan privasi HaveContact tentang pencarian nomor, laporan komunitas, keamanan, retensi, dan penghapusan data.">
+  <title>Kebijakan Privasi - HaveContact</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#090d0b;color:#f4f6f0}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 12% 0%,#b5ef6318,transparent 38%),#090d0b;line-height:1.75}
+    main{width:min(760px,calc(100% - 36px));margin:0 auto;padding:48px 0 80px}
+    a{color:#c4f36b}header{margin-bottom:38px}.brand{font-weight:750;letter-spacing:-.03em;color:#fff;text-decoration:none}
+    .tag{color:#c4f36b;font-size:11px;letter-spacing:.18em;font-weight:700;margin-top:36px}
+    h1{font-size:clamp(32px,7vw,48px);line-height:1.12;letter-spacing:-.05em;margin:12px 0}
+    h2{font-size:19px;letter-spacing:-.02em;margin:32px 0 8px}p,li{color:#b3bcae;font-size:14px}
+    .note{border:1px solid #c4f36b30;background:#c4f36b0b;border-radius:16px;padding:16px;color:#d9e4d1}
+    footer{border-top:1px solid #ffffff1a;margin-top:48px;padding-top:22px;font-size:12px;color:#879184}
+  </style>
+</head>
+<body><main>
+  <header><a class="brand" href="/">HaveContact.</a><div class="tag">LEGAL &amp; PRIVACY</div><h1>Kebijakan Privasi</h1><p>Terakhir diperbarui: 3 November 2026</p></header>
+  <p class="note">HaveContact dirancang untuk menampilkan metadata nomor dan ringkasan laporan komunitas, bukan untuk mengungkap identitas pribadi pemilik nomor.</p>
+  <h2>1. Informasi yang kami proses</h2>
+  <p>Saat Anda mencari nomor, layanan memproses nomor yang dimasukkan untuk normalisasi, metadata numbering plan, dan pencocokan laporan komunitas. Nomor mentah tidak disimpan sebagai kolom nomor di database laporan. Sistem membuat indeks HMAC menggunakan secret server agar laporan untuk nomor yang sama dapat dikelompokkan tanpa menyimpan nomor mentah.</p>
+  <p>Jika Anda mengirim laporan, kami memproses nomor terkait, kategori, deskripsi yang Anda tulis, waktu pengiriman, status moderasi, serta ID referensi acak. Jangan masukkan nama lengkap, alamat, informasi akun, data keuangan, atau informasi pribadi sensitif ke dalam deskripsi.</p>
+  <h2>2. Informasi yang ditampilkan</h2>
+  <p>Pencarian publik hanya menampilkan metadata nomor yang tersedia dari numbering plan dan agregat kategori serta jumlah laporan yang telah disetujui moderator. Identitas pelanggan, nama kontak, isi laporan yang masih menunggu moderasi, dan alasan moderasi tidak ditampilkan kepada publik. Laporan komunitas bukan bukti identitas atau bukti bahwa seseorang melakukan pelanggaran.</p>
+  <h2>3. Verifikasi dan penyedia layanan</h2>
+  <p>Pengiriman laporan menggunakan Cloudflare Turnstile untuk membantu membedakan pengguna manusia dari trafik otomatis. Permintaan diproses melalui infrastruktur Cloudflare Workers dan D1. Penyedia infrastruktur dapat memproses data teknis seperti alamat IP dan informasi permintaan sesuai pengaturan serta kebijakan mereka. Kami menggunakan pembatasan permintaan dan tidak menyimpan alamat IP mentah sebagai identitas akun di database aplikasi.</p>
+  <h2>4. Retensi data</h2>
+  <ul>
+    <li>Laporan menunggu moderasi dan laporan yang ditolak dihapus otomatis setelah 30 hari.</li>
+    <li>Laporan yang disetujui dihapus otomatis setelah 180 hari.</li>
+    <li>Catatan audit moderasi disimpan maksimal 365 hari, dengan penghapusan terkait saat laporan induk dihapus.</li>
+    <li>Bucket pembatasan permintaan yang kedaluwarsa dibersihkan setelah 7 hari dan catatan penyalahgunaan setelah 90 hari.</li>
+  </ul>
+  <p>Jadwal tersebut merupakan konfigurasi retensi aplikasi dan dapat berubah jika diperlukan untuk keamanan, kepatuhan, atau operasional.</p>
+  <h2>5. Penghapusan laporan</h2>
+  <p>Pengirim dapat menghapus laporan menggunakan ID referensi privat yang diberikan setelah pengiriman. Siapa pun yang memiliki ID tersebut dapat meminta penghapusan laporan terkait, sehingga ID harus disimpan secara rahasia. Penghapusan melalui ID membuktikan penguasaan token tersebut, bukan identitas hukum atau kepemilikan nomor telepon. Jangan membagikan ID referensi kepada orang lain.</p>
+  <h2>6. Keamanan</h2>
+  <p>Kami menerapkan pembatasan permintaan, moderasi sebelum publikasi, autentikasi endpoint admin, hashing berbasis HMAC untuk indeks nomor, serta header keamanan. Tidak ada sistem yang dapat menjamin keamanan absolut. Jangan mengirim informasi yang tidak ingin Anda proses melalui layanan internet.</p>
+  <h2>7. Anak-anak dan data sensitif</h2>
+  <p>Jangan gunakan layanan untuk mengirim atau mencari data pribadi sensitif, data anak, informasi medis, informasi keuangan, atau data yang diperoleh tanpa hak. Layanan ini bukan direktori pelanggan dan tidak menyediakan pencarian identitas pribadi.</p>
+  <h2>8. Perubahan kebijakan</h2>
+  <p>Kebijakan ini dapat diperbarui ketika fitur, infrastruktur, atau kewajiban operasional berubah. Versi terbaru akan dipublikasikan di halaman ini beserta tanggal pembaruannya.</p>
+  <h2>9. Batasan dan pertanyaan</h2>
+  <p>HaveContact merupakan layanan informasi komunitas dan bukan layanan darurat, biro investigasi, atau sumber verifikasi identitas. Jika Anda memiliki pertanyaan atau permintaan terkait privasi, gunakan kanal kontak resmi yang dipublikasikan oleh pengelola layanan.</p>
+  <footer><a href="/">Kembali ke HaveContact</a> · Kebijakan ini merupakan penjelasan operasional dan bukan nasihat hukum.</footer>
+</main></body></html>

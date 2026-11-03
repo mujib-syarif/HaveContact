@@ -117,7 +117,7 @@ export default {
     if(url.pathname==="/api/admin/feedback"){
       const status=url.searchParams.get("status")??"pending";
       if(!["pending","resolved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid feedback status"},400);
-      const rows=await env.DB.prepare("SELECT id,request_type,details,status,created_at FROM community_feedback WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
+      const rows=await env.DB.prepare("SELECT id,substr(phone_hash,1,12) AS phone_fingerprint,request_type,details,status,created_at FROM community_feedback WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
       return json(request,env,{ok:true,feedback:rows.results??[]});
     }
     const status=url.searchParams.get("status")??"pending";

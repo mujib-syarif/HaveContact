@@ -86,13 +86,14 @@ The workflow runs dependency audit, typechecks, tests, applies D1 migrations, up
 - `POST /api/v1/reports` (Turnstile required; body: phone, category, description; returns a report reference ID)
 - `POST /api/v1/reports/remove` (body: referenceId; permanently removes the report, moderation history, and orphaned phone hash)
 - `GET /api/admin/reports?status=pending` (admin bearer authentication; statuses: pending, approved, rejected; max 100)
+- `GET /api/admin/feedback?status=pending` and `POST /api/admin/feedback/:id/resolve` (admin bearer authentication; review private correction/abuse requests)
 - `POST /api/admin/reports/:id/moderate` (admin bearer authentication; approve or reject a pending report; rejection requires a 5-500 character reason)
 
 ## Privacy and safety
 - Phone numbers are normalized and HMAC-indexed; raw numbers are not stored in D1.
 - Report descriptions are private while pending. Public lookup exposes only approved aggregate categories and counts.
 - No automatic contact-book uploads, reverse identity claims, or public personal-name tags.
-- Reports require moderation. Authors can remove a submitted report using its reference ID; removal also deletes its moderation history and orphaned phone hash.
+- Reports require moderation. Visitors can privately submit correction or abuse feedback for a phone number; feedback is never exposed in public lookup and requires admin review. Authors can remove a submitted report using its reference ID; removal also deletes its moderation history and orphaned phone hash.
 - A report reference ID is a bearer credential: anyone who possesses it can remove that report. It is shown once after submission, should be stored privately, and is rate-limited to 3 removal attempts per IP per hour. This flow proves possession of the reference, not legal identity or ownership of the phone number.
 - Configure the production HTTPS CORS allowlist, all three Worker secrets, rate limiting, and retention controls before production.
 - GET query strings may be present in infrastructure logs; review logging and retention before production.

@@ -108,12 +108,18 @@ export default {
     return json(request,env,{ok:false,error:"Service is not configured securely"},503);
   }
 
-  if((url.pathname==="/api/admin/reports"||url.pathname==="/api/admin/feedback"||url.pathname==="/api/admin/business-claims")&&request.method==="GET"){
+  if((url.pathname==="/api/admin/reports"||url.pathname==="/api/admin/feedback"||url.pathname==="/api/admin/business-claims"||url.pathname==="/api/admin/identity-claims")&&request.method==="GET"){
     const adminRate=await rateLimit(request,env,"admin",20,60);
     if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
     const auth=request.headers.get("Authorization")??"";
     const token=auth.startsWith("Bearer ")?auth.slice(7):"";
     if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
+    if(url.pathname==="/api/admin/identity-claims"){
+      const status=url.searchParams.get("status")??"pending";
+      if(!["pending","approved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid status"},400);
+      const rows=await env.DB.prepare("SELECT id,display_name,public_profile_url,status,created_at,substr(phone_hash,1,12) AS phone_fingerprint FROM identity_claims WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
+      return json(request,env,{ok:true,claims:rows.results??[]});
+    }
     if(url.pathname==="/api/admin/business-claims"){
       const status=url.searchParams.get("status")??"pending";
       if(!["pending","approved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid claim status"},400);

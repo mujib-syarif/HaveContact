@@ -45,7 +45,8 @@ npm run dev
 ## API
 - `GET /api/health`
 - `GET /api/v1/lookup?phone=+62812...`
-- `POST /api/v1/reports` (Turnstile required; body: phone, category, description; returns a report reference ID for follow-up)
+- `POST /api/v1/reports` (Turnstile required; body: phone, category, description; returns a report reference ID)
+- `POST /api/v1/reports/remove` (body: referenceId; permanently removes the report, moderation history, and orphaned phone hash)
 - `GET /api/admin/reports?status=pending` (admin bearer authentication; statuses: pending, approved, rejected; max 100)
 - `POST /api/admin/reports/:id/moderate` (admin bearer authentication; approve or reject a pending report; rejection requires a 5-500 character reason)
 
@@ -53,7 +54,8 @@ npm run dev
 - Phone numbers are normalized and HMAC-indexed; raw numbers are not stored in D1.
 - Report descriptions are private while pending. Public lookup exposes only approved aggregate categories and counts.
 - No automatic contact-book uploads, reverse identity claims, or public personal-name tags.
-- Reports require moderation; provide correction/deletion workflows before public launch.
+- Reports require moderation. Authors can remove a submitted report using its reference ID; removal also deletes its moderation history and orphaned phone hash.
+- A report reference ID is a bearer credential: anyone who possesses it can remove that report. It is shown once after submission, should be stored privately, and is rate-limited to 3 removal attempts per IP per hour. This flow proves possession of the reference, not legal identity or ownership of the phone number.
 - Configure a strict CORS allowlist, rate limiting, retention controls, and admin authentication before production.
 - GET query strings may be present in infrastructure logs; review logging and retention before production.
 
@@ -85,7 +87,7 @@ MIT - see LICENSE.
 5. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`.
 6. Build and deploy the frontend and Worker. Test health, lookup, report submission, and moderation with a non-production test number before public launch.
 
-Rate limiting uses HMAC-derived request buckets rather than storing raw client IP addresses. It is a baseline safeguard, not a substitute for Cloudflare WAF or managed rate limiting on a public launch. Lookup is limited to 40 requests per IP per minute, report submission to 5 per IP per hour and 3 per normalized phone number per 24 hours, and admin API traffic to 20 requests per IP per minute. Report creation and moderation status/audit writes use D1 batches so related database changes commit or roll back together.
+Rate limiting uses HMAC-derived request buckets rather than storing raw client IP addresses. It is a baseline safeguard, not a substitute for Cloudflare WAF or managed rate limiting on a public launch. Lookup is limited to 40 requests per IP per minute, report submission to 5 per IP per hour and 3 per normalized phone number per 24 hours, and admin API traffic to 20 requests per IP per minute. Report creation, moderation status/audit writes, and report removal use D1 batches so related database changes commit or roll back together.
 
 
 ## Automated checks

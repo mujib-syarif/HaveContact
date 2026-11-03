@@ -82,6 +82,8 @@ export default {
   if(!env.DB||!env.PHONE_HASH_SECRET)return json(request,env,{ok:false,error:"Service is not configured"},503);
 
   if(url.pathname==="/api/admin/reports"&&request.method==="GET"){
+    const adminRate=await rateLimit(request,env,"admin",20,60);
+    if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
     const auth=request.headers.get("Authorization")??"";
     const token=auth.startsWith("Bearer ")?auth.slice(7):"";
     if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
@@ -93,6 +95,8 @@ export default {
   const parts=url.pathname.split("/");
   const reportId=parts.length===6&&parts[1]==="api"&&parts[2]==="admin"&&parts[3]==="reports"&&parts[5]==="moderate"&&/^[a-f0-9-]{36}$/i.test(parts[4])?parts[4]:"";
   if(request.method==="POST"&&reportId){
+    const adminRate=await rateLimit(request,env,"admin",20,60);
+    if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
     const auth=request.headers.get("Authorization")??"",token=auth.startsWith("Bearer ")?auth.slice(7):"";
     if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
     const parsedBody=await readJsonObject(request,2048);

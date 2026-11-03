@@ -98,3 +98,11 @@ Run `npm test` for phone-number normalization, numbering metadata, bounded JSON 
 - Migration `0003_moderation_reason.sql` adds a moderation reason to reports and the audit log.
 - Rejection requires a concise reason (5-500 characters). Approval may include an optional note.
 - Reasons are visible only in the authenticated admin dashboard and are never returned by public lookup.
+
+
+## Operational data retention
+
+- A daily Cloudflare Cron Trigger runs at 03:17 UTC.
+- Expired HMAC rate-limit buckets older than 7 days are pruned automatically.
+- Operational abuse-event records older than 90 days are pruned automatically.
+- Community reports and moderation audit history are not automatically deleted by this cleanup; define and publish a separate report-retention and user-removal policy before public launch.

@@ -3,6 +3,12 @@ import { readJsonObject } from "./request";
 import { createPendingReport, persistModeration, removeReport } from "./writes";
 import { hasUnsupportedControlCharacters } from "./validation";
 import { cleanupExpiredOperationalData } from "./maintenance";
+import {
+  IDENTITY_LIST_FILTERS, approveClaim, createWithdrawalToken, findActiveClaim, findPublicIdentity,
+  getClaimStatusByToken, getPendingClaimHash, insertPendingClaim, isUniqueConstraintError,
+  isWithdrawalTokenShape, listClaimsForAdmin, rejectClaim, revokeClaim, validateIdentitySubmission,
+  withdrawClaimByToken
+} from "./identity";
 
 interface Env {
   DB: D1Database;
@@ -93,6 +99,14 @@ function productionConfigReady(env:Env):boolean{
     validOrigins
   );
 }
+async function requireAdmin(request:Request,env:Env):Promise<Response|null>{
+  const adminRate=await rateLimit(request,env,"admin",20,60);
+  if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
+  const auth=request.headers.get("Authorization")??"";
+  const token=auth.startsWith("Bearer ")?auth.slice(7):"";
+  if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
+  return null;
+}
 export default {
  async fetch(request:Request,env:Env):Promise<Response>{
   const url=new URL(request.url);
@@ -108,12 +122,17 @@ export default {
     return json(request,env,{ok:false,error:"Service is not configured securely"},503);
   }
 
-  if((url.pathname==="/api/admin/reports"||url.pathname==="/api/admin/feedback"||url.pathname==="/api/admin/business-claims")&&request.method==="GET"){
+  if((url.pathname==="/api/admin/reports"||url.pathname==="/api/admin/feedback"||url.pathname==="/api/admin/business-claims"||url.pathname==="/api/admin/identity-claims")&&request.method==="GET"){
     const adminRate=await rateLimit(request,env,"admin",20,60);
     if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
     const auth=request.headers.get("Authorization")??"";
     const token=auth.startsWith("Bearer ")?auth.slice(7):"";
     if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
+    if(url.pathname==="/api/admin/identity-claims"){
+      const status=url.searchParams.get("status")??"pending";
+      if(!(IDENTITY_LIST_FILTERS as readonly string[]).includes(status))return json(request,env,{ok:false,error:"Invalid status"},400);
+      return json(request,env,{ok:true,claims:await listClaimsForAdmin(env.DB,status)});
+    }
     if(url.pathname==="/api/admin/business-claims"){
       const status=url.searchParams.get("status")??"pending";
       if(!["pending","approved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid claim status"},400);
@@ -145,6 +164,45 @@ export default {
     const result=await env.DB.prepare("UPDATE community_feedback SET status=?,reviewed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='pending'").bind(action,feedbackId).run();
     if((result.meta?.changes??0)!==1)return json(request,env,{ok:false,error:"Feedback not found or already reviewed"},409);
     return json(request,env,{ok:true,feedback:{id:feedbackId,status:action}});
+  }
+
+  const identityParts=url.pathname.split("/");
+  const identityId=identityParts.length===6&&identityParts[1]==="api"&&identityParts[2]==="admin"&&identityParts[3]==="identity-claims"&&(identityParts[5]==="moderate"||identityParts[5]==="revoke")&&/^[a-f0-9-]{36}$/i.test(identityParts[4])?identityParts[4]:"";
+  if(request.method==="POST"&&identityId){
+    const denied=await requireAdmin(request,env);
+    if(denied)return denied;
+    const parsed=await readJsonObject(request,2048);
+    if(!parsed.data)return json(request,env,{ok:false,error:parsed.error??"Invalid JSON"},parsed.error==="Request body too large"?413:400);
+    const note=typeof parsed.data.note==="string"?parsed.data.note.trim():"";
+    if(note.length>500||hasUnsupportedControlCharacters(note))return json(request,env,{ok:false,error:"Review note must be 500 characters or fewer without control characters"},400);
+    if(identityParts[5]==="revoke"){
+      if(note.length<5)return json(request,env,{ok:false,error:"A revocation note of at least 5 characters is required"},400);
+      if(!(await revokeClaim(env.DB,identityId,note)))return json(request,env,{ok:false,error:"Claim not found or not currently approved"},409);
+      return json(request,env,{ok:true,claim:{id:identityId,status:"revoked"}});
+    }
+    const action=parsed.data.action;
+    if(action!=="approved"&&action!=="rejected")return json(request,env,{ok:false,error:"Invalid action"},400);
+    if(action==="rejected"){
+      if(note.length<5)return json(request,env,{ok:false,error:"A rejection note of at least 5 characters is required"},400);
+      if(!(await rejectClaim(env.DB,identityId,note)))return json(request,env,{ok:false,error:"Claim not found or already reviewed"},409);
+      return json(request,env,{ok:true,claim:{id:identityId,status:"rejected"}});
+    }
+    // Approval requires evidence: the reviewer must type the number they saw on the
+    // proof page, and it must match the stored HMAC. A URL alone is never enough.
+    if(parsed.data.evidenceConfirmed!==true)return json(request,env,{ok:false,error:"Confirm that the proof page shows this name together with this number"},400);
+    if(note.length<10)return json(request,env,{ok:false,error:"Describe the evidence you reviewed (at least 10 characters)"},400);
+    const seenPhone=normalizePhone(parsed.data.phone);
+    if(!seenPhone)return json(request,env,{ok:false,error:"Enter the phone number shown on the proof page"},400);
+    const storedHash=await getPendingClaimHash(env.DB,identityId);
+    if(!storedHash)return json(request,env,{ok:false,error:"Claim not found or already reviewed"},409);
+    if(!safeEqual(await hmac(seenPhone,env.PHONE_HASH_SECRET),storedHash))return json(request,env,{ok:false,error:"The number you entered does not match this claim"},422);
+    try{
+      if(!(await approveClaim(env.DB,identityId,note)))return json(request,env,{ok:false,error:"Claim not found or already reviewed"},409);
+    }catch(error){
+      if(isUniqueConstraintError(error))return json(request,env,{ok:false,error:"Another identity is already approved for this number. Revoke it first."},409);
+      throw error;
+    }
+    return json(request,env,{ok:true,claim:{id:identityId,status:"approved"}});
   }
 
   const claimParts=url.pathname.split("/");
@@ -226,9 +284,53 @@ export default {
     const row=await env.DB.prepare("SELECT category,COUNT(*) AS total FROM reports WHERE phone_hash=? AND status='approved' GROUP BY category").bind(phoneHash).all<{category:string;total:number}>();
     const labelRows=await env.DB.prepare("SELECT public_label,COUNT(*) AS mentions FROM reports WHERE phone_hash=? AND status='approved' AND public_label IS NOT NULL GROUP BY public_label ORDER BY mentions DESC LIMIT 10").bind(phoneHash).all<{public_label:string;mentions:number}>();
     const profileRows=await env.DB.prepare("SELECT business_name,website,public_email,reviewed_at FROM business_claims WHERE phone_hash=? AND status='approved' ORDER BY reviewed_at DESC LIMIT 5").bind(phoneHash).all<{business_name:string;website:string;public_email:string|null;reviewed_at:string}>();
+    const identity=await findPublicIdentity(env.DB,phoneHash);
     const reports=row.results??[];
     const labels=(labelRows.results??[]).map(item=>({label:item.public_label,mentions:item.mentions,source:"community",verified:false}));
-    return json(request,env,{ok:true,result:{number:phone,metadata:getPhoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),labels,businessProfiles:(profileRows.results??[]).map(item=>({name:item.business_name,website:item.website,publicEmail:item.public_email,verified:true,verifiedAt:item.reviewed_at})),identity:null,disclaimer:"Community labels are user-submitted and moderated; they do not establish personal identity or wrongdoing."}});
+    return json(request,env,{ok:true,result:{number:phone,metadata:getPhoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),labels,businessProfiles:(profileRows.results??[]).map(item=>({name:item.business_name,website:item.website,publicEmail:item.public_email,verified:true,verifiedAt:item.reviewed_at})),identity,disclaimer:"Community labels are user-submitted and moderated; they do not establish personal identity or wrongdoing."}});
+  }
+
+  if(request.method==="POST"&&url.pathname==="/api/v1/identity-claims"){
+    const rate=await rateLimit(request,env,"identity-claim",3,86400);
+    if(!rate.allowed)return json(request,env,{ok:false,error:"Terlalu banyak pengajuan. Coba lagi nanti."},429,{"Retry-After":String(rate.retryAfter)});
+    if(!(await verifyTurnstile(request.headers.get("X-Turnstile-Token"),env.TURNSTILE_SECRET)))return json(request,env,{ok:false,error:"Verifikasi keamanan gagal atau belum dikonfigurasi."},403);
+    const parsed=await readJsonObject(request,6000);
+    if(!parsed.data)return json(request,env,{ok:false,error:parsed.error??"Invalid request"},parsed.error==="Request body too large"?413:400);
+    const checked=validateIdentitySubmission(parsed.data);
+    if(!checked.ok)return json(request,env,{ok:false,error:checked.error},400);
+    const {phone,displayName,proofUrl}=checked.value;
+    const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET);
+    const phoneRate=await rateLimit(request,env,"identity-claim-phone",2,86400,phoneHash);
+    if(!phoneRate.allowed)return json(request,env,{ok:false,error:"Nomor ini sudah mencapai batas pengajuan. Coba lagi nanti."},429,{"Retry-After":String(phoneRate.retryAfter)});
+    const duplicateMessage="Sudah ada pengajuan aktif atau identitas yang disetujui untuk nomor ini.";
+    if(await findActiveClaim(env.DB,phoneHash))return json(request,env,{ok:false,error:duplicateMessage},409);
+    const withdrawalToken=createWithdrawalToken();
+    const id=crypto.randomUUID();
+    try{
+      await insertPendingClaim(env.DB,{id,phoneHash,displayName,proofUrl,tokenHash:await hmac(`identity-withdraw:${withdrawalToken}`,env.PHONE_HASH_SECRET)});
+    }catch(error){
+      if(isUniqueConstraintError(error))return json(request,env,{ok:false,error:duplicateMessage},409);
+      throw error;
+    }
+    return json(request,env,{ok:true,claim:{status:"pending"},withdrawalToken,message:"Pengajuan diterima. Nama baru tampil setelah moderator meninjau bukti. Simpan kode penarikan ini; tidak akan ditampilkan lagi."},201);
+  }
+
+  if(request.method==="POST"&&(url.pathname==="/api/v1/identity-claims/status"||url.pathname==="/api/v1/identity-claims/withdraw")){
+    const withdraw=url.pathname.endsWith("/withdraw");
+    const rate=await rateLimit(request,env,withdraw?"identity-withdraw":"identity-status",10,3600);
+    if(!rate.allowed)return json(request,env,{ok:false,error:"Terlalu banyak permintaan. Coba lagi nanti."},429,{"Retry-After":String(rate.retryAfter)});
+    const parsed=await readJsonObject(request,1024);
+    if(!parsed.data)return json(request,env,{ok:false,error:parsed.error??"Invalid request"},400);
+    if(!isWithdrawalTokenShape(parsed.data.withdrawalToken))return json(request,env,{ok:false,error:"Kode penarikan tidak valid."},400);
+    const tokenHash=await hmac(`identity-withdraw:${parsed.data.withdrawalToken}`,env.PHONE_HASH_SECRET);
+    if(withdraw){
+      if(!(await withdrawClaimByToken(env.DB,tokenHash)))return json(request,env,{ok:false,error:"Tidak ada pengajuan aktif untuk kode ini."},404);
+      return json(request,env,{ok:true,message:"Identitas ditarik dan tidak lagi tampil di pencarian."});
+    }
+    const row=await getClaimStatusByToken(env.DB,tokenHash);
+    if(!row)return json(request,env,{ok:false,error:"Kode tidak ditemukan."},404);
+    const expired=row.status==="approved"&&row.expires_at!==null&&Date.parse(row.expires_at)<=Date.now();
+    return json(request,env,{ok:true,claim:{status:expired?"expired":row.status,submittedAt:row.created_at,reviewedAt:row.reviewed_at,expiresAt:row.expires_at}});
   }
 
   if(request.method==="POST"&&url.pathname==="/api/v1/business-claims"){

@@ -25,9 +25,11 @@
   <p>Jika Anda mengirim laporan, kami memproses nomor terkait, kategori, deskripsi yang Anda tulis, waktu pengiriman, status moderasi, serta ID referensi acak. Jika Anda mengirim koreksi atau laporan penyalahgunaan, kami memproses nomor terkait dalam bentuk indeks HMAC, jenis masukan, detail, waktu pengiriman, dan status peninjauan. Masukan tersebut hanya tersedia untuk admin dan tidak ditampilkan di hasil pencarian publik. Jangan masukkan nama lengkap, alamat, informasi akun, data keuangan, atau informasi pribadi sensitif ke dalam deskripsi.</p>
   <h2>2. Informasi yang ditampilkan</h2>
   <p>Pencarian publik hanya menampilkan metadata nomor yang tersedia dari numbering plan dan agregat kategori serta jumlah laporan yang telah disetujui moderator. Identitas pelanggan, nama kontak, isi laporan yang masih menunggu moderasi, dan alasan moderasi tidak ditampilkan kepada publik. Laporan komunitas bukan bukti identitas atau bukti bahwa seseorang melakukan pelanggaran.</p>
-  <h2>3. Verifikasi dan penyedia layanan</h2>
+  <h2>3. Direktori identitas atas persetujuan</h2>
+  <p>Pemilik atau pengguna nomor dapat secara sukarela mengajukan nama tampilan dan URL bukti publik (HTTPS) yang memuat nama dan nomor yang sama. Pengajuan memerlukan persetujuan eksplisit untuk pencocokan publik, verifikasi anti-bot, dan peninjauan moderator yang harus melihat bukti tersebut dan mencocokkan nomornya. Hanya pengajuan yang disetujui, belum kedaluwarsa, dan belum ditarik yang muncul di hasil pencarian; yang ditampilkan hanyalah nama tampilan dan tautan bukti. Pengajuan yang menunggu, ditolak, ditarik, atau dicabut tidak pernah ditampilkan. Kami menyimpan indeks nomor dalam bentuk HMAC, nama tampilan, URL bukti, waktu persetujuan, status moderasi, catatan peninjauan, dan HMAC dari kode penarikan. Persetujuan berlaku 365 hari. Anda dapat menarik identitas kapan saja dengan kode penarikan yang ditampilkan satu kali setelah pengiriman; penarikan langsung menghapus nama dari hasil pencarian. Peninjauan ini bukan verifikasi identitas resmi pemerintah atau bukti kepemilikan operator. Jangan mengajukan nomor orang lain.</p>
+  <h2>4. Verifikasi dan penyedia layanan</h2>
   <p>Pengiriman laporan menggunakan Cloudflare Turnstile untuk membantu membedakan pengguna manusia dari trafik otomatis. Permintaan diproses melalui infrastruktur Cloudflare Workers dan D1. Penyedia infrastruktur dapat memproses data teknis seperti alamat IP dan informasi permintaan sesuai pengaturan serta kebijakan mereka. Kami menggunakan pembatasan permintaan dan tidak menyimpan alamat IP mentah sebagai identitas akun di database aplikasi.</p>
-  <h2>4. Retensi data</h2>
+  <h2>5. Retensi data</h2>
   <ul>
     <li>Laporan menunggu moderasi dan laporan yang ditolak dihapus otomatis setelah 30 hari.</li>
     <li>Laporan yang disetujui dihapus otomatis setelah 180 hari.</li>
@@ -35,17 +37,18 @@
     <li>Bucket pembatasan permintaan yang kedaluwarsa dibersihkan setelah 7 hari.</li>
     <li>Catatan penyalahgunaan, masukan koreksi/laporan privat, serta klaim bisnis yang masih menunggu atau ditolak dihapus setelah 90 hari.</li>
     <li>Profil bisnis yang disetujui dan bukti klaim terkait dihapus setelah 365 hari sejak persetujuan, kecuali pemilik mengajukan ulang dan lolos peninjauan.</li>
+    <li>Pengajuan identitas yang menunggu, ditolak, ditarik, atau dicabut dihapus setelah 90 hari; nama publik yang disetujui dan bukti profil kedaluwarsa dan tidak lagi tampil setelah 365 hari sejak persetujuan, lalu dihapus paling lambat 30 hari setelah kedaluwarsa.</li>
   </ul>
   <p>Jadwal tersebut merupakan konfigurasi retensi aplikasi dan dapat berubah jika diperlukan untuk keamanan, kepatuhan, atau operasional.</p>
-  <h2>5. Penghapusan laporan</h2>
+  <h2>6. Penghapusan laporan</h2>
   <p>Pengirim dapat menghapus laporan menggunakan ID referensi privat yang diberikan setelah pengiriman. Siapa pun yang memiliki ID tersebut dapat meminta penghapusan laporan terkait, sehingga ID harus disimpan secara rahasia. Penghapusan melalui ID membuktikan penguasaan token tersebut, bukan identitas hukum atau kepemilikan nomor telepon. Jangan membagikan ID referensi kepada orang lain.</p>
-  <h2>6. Keamanan</h2>
+  <h2>7. Keamanan</h2>
   <p>Kami menerapkan pembatasan permintaan, moderasi sebelum publikasi, autentikasi endpoint admin, hashing berbasis HMAC untuk indeks nomor, serta header keamanan. Tidak ada sistem yang dapat menjamin keamanan absolut. Jangan mengirim informasi yang tidak ingin Anda proses melalui layanan internet.</p>
-  <h2>7. Anak-anak dan data sensitif</h2>
+  <h2>8. Anak-anak dan data sensitif</h2>
   <p>Jangan gunakan layanan untuk mengirim atau mencari data pribadi sensitif, data anak, informasi medis, informasi keuangan, atau data yang diperoleh tanpa hak. Layanan ini bukan direktori pelanggan dan tidak menyediakan pencarian identitas pribadi.</p>
-  <h2>8. Perubahan kebijakan</h2>
+  <h2>9. Perubahan kebijakan</h2>
   <p>Kebijakan ini dapat diperbarui ketika fitur, infrastruktur, atau kewajiban operasional berubah. Versi terbaru akan dipublikasikan di halaman ini beserta tanggal pembaruannya.</p>
-  <h2>9. Batasan dan pertanyaan</h2>
+  <h2>10. Batasan dan pertanyaan</h2>
   <p>HaveContact merupakan layanan informasi komunitas dan bukan layanan darurat, biro investigasi, atau sumber verifikasi identitas. Jika Anda memiliki pertanyaan atau permintaan terkait privasi, gunakan kanal kontak resmi yang dipublikasikan oleh pengelola layanan.</p>
   <footer><a href="/">Kembali ke HaveContact</a> · Kebijakan ini merupakan penjelasan operasional dan bukan nasihat hukum.</footer>
 </main></body></html>

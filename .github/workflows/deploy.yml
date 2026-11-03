@@ -85,32 +85,6 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.WORKER_BASE_URL }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
         run: npm run build
-      - name: Ensure Cloudflare Pages project exists
-        env:
-          PAGES_PROJECT_NAME: ${{ vars.PAGES_PROJECT_NAME }}
-        run: |
-          set -eu
-          if npx wrangler pages project list --json | node -e '
-            let input = "";
-            process.stdin.on("data", chunk => input += chunk).on("end", () => {
-              const target = process.env.PAGES_PROJECT_NAME;
-              const contains = value => {
-                if (Array.isArray(value)) return value.some(contains);
-                if (value && typeof value === "object") {
-                  if (value.name === target) return true;
-                  return Object.values(value).some(contains);
-                }
-                return false;
-              };
-              try { process.exit(contains(JSON.parse(input)) ? 0 : 1); }
-              catch { process.exit(2); }
-            });
-          '; then
-            echo "Pages project $PAGES_PROJECT_NAME already exists"
-          else
-            echo "Creating Pages project $PAGES_PROJECT_NAME"
-            npx wrangler pages project create "$PAGES_PROJECT_NAME" --production-branch main
-          fi
       - name: Deploy Cloudflare Pages
         env:
           PAGES_PROJECT_NAME: ${{ vars.PAGES_PROJECT_NAME }}

@@ -37,8 +37,7 @@ npm run dev
 
 The Worker has a separate `production` environment. Always use the `--env production` commands below for production secrets, migrations, and deployment.
 
-1. Create the production D1 database: `npx wrangler d1 create havecontact-db`.
-2. Copy the returned database ID into **both** `database_id` entries in `wrangler.toml` (top-level local binding and `env.production` binding).
+1. The production D1 database is already provisioned as `havecontact-db`; its ID is configured in both bindings in `wrangler.toml`.
 3. Configure a Turnstile widget for the frontend hostname. Keep its site key for the frontend and its secret key for the Worker.
 4. Set production Worker secrets:
    ```bash
@@ -60,8 +59,7 @@ The production Worker fails closed unless D1, all three secrets, and a non-empty
 
 The repository includes a manual deployment workflow at `.github/workflows/deploy.yml`. To prepare it:
 
-1. Create the Cloudflare Pages project once: `npx wrangler pages project create YOUR_PAGES_PROJECT --production-branch main`.
-2. In GitHub, open **Settings > Environments** and create an environment named `production`.
+1. In GitHub, open **Settings > Environments** and create an environment named `production`. The deployment workflow creates the Pages project automatically if it does not exist.
 3. Add these environment **secrets**:
    - `CLOUDFLARE_API_TOKEN` (Cloudflare token with Workers Scripts Edit, D1 Edit, Pages Edit, and Account Settings Read permissions)
    - `CLOUDFLARE_ACCOUNT_ID`
@@ -69,9 +67,9 @@ The repository includes a manual deployment workflow at `.github/workflows/deplo
    - `TURNSTILE_SECRET`
    - `ADMIN_API_TOKEN` (at least 32 random characters)
 4. Add these environment **variables**:
-   - `WORKER_BASE_URL` (Worker HTTPS origin, no trailing slash)
-   - `FRONTEND_URL` (Pages HTTPS origin, no trailing slash)
-   - `PAGES_PROJECT_NAME` (the Pages project created in step 1)
+   - `WORKER_BASE_URL` (Worker HTTPS origin, no trailing slash; with the current config this is `https://havecontact-api-production.mujib.workers.dev`)
+   - `FRONTEND_URL` (Pages HTTPS origin, no trailing slash; expected `https://havecontact.pages.dev`)
+   - `PAGES_PROJECT_NAME` (use `havecontact`)
    - `ALLOWED_ORIGINS` (must exactly match `FRONTEND_URL`)
    - `VITE_TURNSTILE_SITE_KEY`
 5. Confirm the production D1 ID is filled in both production and top-level bindings in `wrangler.toml`.

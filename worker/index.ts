@@ -1,6 +1,7 @@
 import { getPhoneMetadata, normalizePhone } from "../shared/phone";
 import { readJsonObject } from "./request";
 import { createPendingReport, persistModeration } from "./writes";
+import { hasUnsupportedControlCharacters } from "./validation";
 
 interface Env {
   DB: D1Database;
@@ -131,7 +132,7 @@ export default {
     const categories=["spam","scam","telemarketing","business","other"];
     if(!phone||typeof category!=="string"||!categories.includes(category))return json(request,env,{ok:false,error:"Invalid phone number or category"},400);
     if(description.length<10||description.length>500)return json(request,env,{ok:false,error:"Description must be 10-500 characters"},400);
-    if(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/.test(description))return json(request,env,{ok:false,error:"Description contains unsupported characters"},400);
+    if(hasUnsupportedControlCharacters(description))return json(request,env,{ok:false,error:"Description contains unsupported characters"},400);
     const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET),id=crypto.randomUUID();
     await createPendingReport(env.DB,{id,phoneHash,callingCode:getPhoneMetadata(phone)?.countryCallingCode??null,category,description});
     return json(request,env,{ok:true,report:{id,status:"pending"},message:"Report submitted for moderation."},201);

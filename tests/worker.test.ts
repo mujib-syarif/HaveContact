@@ -306,6 +306,18 @@ describe("HaveContact Worker API", () => {
     }
   });
 
+  it("runs operational data cleanup from the scheduled Worker handler", async () => {
+    const { env, db } = makeEnv();
+    let scheduledTask: Promise<unknown> | undefined;
+    worker.scheduled!(
+      { cron: "17 3 * * *", scheduledTime: Date.now() },
+      env as never,
+      { waitUntil: (promise) => { scheduledTask = promise; } }
+    );
+    await scheduledTask;
+    expect(db.batch).toHaveBeenCalledTimes(1);
+  });
+
   it("fails closed when required service configuration is missing", async () => {
     const { env } = makeEnv({ PHONE_HASH_SECRET: "" });
     const response = await worker.fetch(

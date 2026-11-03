@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import type { D1Database } from "@cloudflare/workers-types";
 import { createPendingReport, persistModeration } from "../worker/writes";
 
 function fakeDatabase(changes = 1) {
@@ -13,7 +12,7 @@ function fakeDatabase(changes = 1) {
     }),
     batch: vi.fn(async () => [{ meta: { changes } }, { meta: { changes: 1 } }])
   };
-  return { db: db as unknown as D1Database, statements, batch: db.batch };
+  return { db: db as unknown as Parameters<typeof persistModeration>[0], statements, batch: db.batch };
 }
 
 describe("atomic D1 writes", () => {

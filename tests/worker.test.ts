@@ -101,7 +101,7 @@ describe("HaveContact Worker API", () => {
     const { env, db } = makeEnv();
     const response = await worker.fetch(
       new Request("https://api.example/api/admin/reports?status=all", {
-        headers: { Authorization: "Bearer test-admin-token" }
+        headers: { Authorization: "Bearer test-admin-token-value-at-least-32-chars" }
       }),
       env as never
     );
@@ -165,7 +165,7 @@ describe("HaveContact Worker API", () => {
       new Request("https://api.example/api/admin/reports/11111111-1111-4111-8111-111111111111/moderate", {
         method: "POST",
         headers: {
-          Authorization: "Bearer test-admin-token",
+          Authorization: "Bearer test-admin-token-value-at-least-32-chars",
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ action: "approved" })
@@ -187,7 +187,7 @@ describe("HaveContact Worker API", () => {
       new Request("https://api.example/api/admin/reports/11111111-1111-4111-8111-111111111111/moderate", {
         method: "POST",
         headers: {
-          Authorization: "Bearer test-admin-token",
+          Authorization: "Bearer test-admin-token-value-at-least-32-chars",
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ action: "rejected", reason: "no" })
@@ -207,7 +207,7 @@ describe("HaveContact Worker API", () => {
     const { env, db } = makeEnv();
     const response = await worker.fetch(
       new Request("https://api.example/api/admin/reports?status=pending", {
-        headers: { Authorization: "Bearer test-admin-token" }
+        headers: { Authorization: "Bearer test-admin-token-value-at-least-32-chars" }
       }),
       env as never
     );
@@ -361,6 +361,6 @@ describe("HaveContact Worker API", () => {
     );
 
     expect(response.status).toBe(503);
-    await expect(json(response)).resolves.toMatchObject({ ok: false, error: "Service is not configured" });
+    await expect(json(response)).resolves.toMatchObject({ ok: false, error: "Service is not configured securely" });
   });
 });

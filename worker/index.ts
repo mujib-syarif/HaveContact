@@ -114,11 +114,33 @@ export default {
     const auth=request.headers.get("Authorization")??"";
     const token=auth.startsWith("Bearer ")?auth.slice(7):"";
     if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
+    if(url.pathname==="/api/admin/feedback"){
+      const status=url.searchParams.get("status")??"pending";
+      if(!["pending","resolved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid feedback status"},400);
+      const rows=await env.DB.prepare("SELECT id,request_type,details,status,created_at FROM community_feedback WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
+      return json(request,env,{ok:true,feedback:rows.results??[]});
+    }
     const status=url.searchParams.get("status")??"pending";
     if(!["pending","approved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid status"},400);
     const rows=await env.DB.prepare("SELECT id,category,description,status,created_at,moderation_reason FROM reports WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
     return json(request,env,{ok:true,reports:rows.results??[]});
   }
+  const feedbackParts=url.pathname.split("/");
+  const feedbackId=feedbackParts.length===6&&feedbackParts[1]==="api"&&feedbackParts[2]==="admin"&&feedbackParts[3]==="feedback"&&feedbackParts[5]==="resolve"&&/^[a-f0-9-]{36}$/i.test(feedbackParts[4])?feedbackParts[4]:"";
+  if(request.method==="POST"&&feedbackId){
+    const adminRate=await rateLimit(request,env,"admin",20,60);
+    if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
+    const auth=request.headers.get("Authorization")??"",token=auth.startsWith("Bearer ")?auth.slice(7):"";
+    if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
+    const parsedBody=await readJsonObject(request,2048);
+    if(!parsedBody.data)return json(request,env,{ok:false,error:parsedBody.error??"Invalid JSON"},400);
+    const action=parsedBody.data.action;
+    if(action!=="resolved"&&action!=="rejected")return json(request,env,{ok:false,error:"Invalid action"},400);
+    const result=await env.DB.prepare("UPDATE community_feedback SET status=?,reviewed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='pending'").bind(action,feedbackId).run();
+    if((result.meta?.changes??0)!==1)return json(request,env,{ok:false,error:"Feedback not found or already reviewed"},409);
+    return json(request,env,{ok:true,feedback:{id:feedbackId,status:action}});
+  }
+
   const parts=url.pathname.split("/");
   const reportId=parts.length===6&&parts[1]==="api"&&parts[2]==="admin"&&parts[3]==="reports"&&parts[5]==="moderate"&&/^[a-f0-9-]{36}$/i.test(parts[4])?parts[4]:"";
   if(request.method==="POST"&&reportId){
@@ -152,6 +174,26 @@ export default {
     if(!removed)return json(request,env,{ok:false,error:"Report not found or already removed"},404);
     return json(request,env,{ok:true,message:"Report and its moderation history have been removed."});
   }
+  if(request.method==="POST"&&url.pathname==="/api/v1/feedback"){
+    const rate=await rateLimit(request,env,"feedback",3,3600);
+    if(!rate.allowed)return json(request,env,{ok:false,error:"Too many feedback submissions. Please try again later."},429,{"Retry-After":String(rate.retryAfter)});
+    if(!(await verifyTurnstile(request.headers.get("X-Turnstile-Token"),env.TURNSTILE_SECRET)))return json(request,env,{ok:false,error:"Bot verification failed or is not configured"},403);
+    const parsedBody=await readJsonObject(request,8000);
+    if(!parsedBody.data)return json(request,env,{ok:false,error:parsedBody.error??"Invalid JSON"},parsedBody.error==="Request body too large"?413:400);
+    const body=parsedBody.data;
+    const phone=normalizePhone(body.phone);
+    const requestType=body.requestType;
+    const details=typeof body.details==="string"?body.details.trim():"";
+    if(!phone||!["correction","abuse"].includes(String(requestType)))return json(request,env,{ok:false,error:"Invalid phone number or request type"},400);
+    if(details.length<10||details.length>500||hasUnsupportedControlCharacters(details))return json(request,env,{ok:false,error:"Details must be 10-500 characters and contain no unsupported control characters"},400);
+    const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET);
+    const phoneRate=await rateLimit(request,env,"feedback-phone",2,86400,phoneHash);
+    if(!phoneRate.allowed)return json(request,env,{ok:false,error:"This number has reached its feedback limit. Try again later."},429,{"Retry-After":String(phoneRate.retryAfter)});
+    const id=crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO community_feedback (id,phone_hash,request_type,details) VALUES (?,?,?,?)").bind(id,phoneHash,requestType,details).run();
+    return json(request,env,{ok:true,feedback:{id,status:"pending"},message:"Masukan diterima dan menunggu peninjauan."},201);
+  }
+
   if(request.method==="GET"&&url.pathname==="/api/v1/lookup"){
     const phone=normalizePhone(url.searchParams.get("phone"));
     if(!phone)return json(request,env,{ok:false,error:"Invalid phone number"},400);

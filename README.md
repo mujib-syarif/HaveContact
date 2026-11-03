@@ -85,12 +85,12 @@ MIT - see LICENSE.
 5. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`.
 6. Build and deploy the frontend and Worker. Test health, lookup, report submission, and moderation with a non-production test number before public launch.
 
-Rate limiting uses HMAC-derived request buckets rather than storing raw client IP addresses. It is a baseline safeguard, not a substitute for Cloudflare WAF or managed rate limiting on a public launch.
+Rate limiting uses HMAC-derived request buckets rather than storing raw client IP addresses. It is a baseline safeguard, not a substitute for Cloudflare WAF or managed rate limiting on a public launch. Report creation and moderation status/audit writes use D1 batches so related database changes commit or roll back together.
 
 
 ## Automated checks
 
-Run `npm test` for phone-number normalization, numbering metadata, and bounded JSON request-parser tests. CI runs typecheck, tests, and production build on pushes and pull requests.
+Run `npm test` for phone-number normalization, numbering metadata, bounded JSON parsing, report-description validation, and atomic D1 write orchestration tests. CI runs typecheck, tests, and production build on pushes and pull requests.
 
 
 ## Moderation audit

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Send } from "lucide-react";
+import { Send, Copy, Check } from "lucide-react";
 import { normalizePhone } from "../shared/phone";
 
 declare global {
@@ -23,6 +23,8 @@ export default function ReportForm() {
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [receiptId, setReceiptId] = useState("");
+  const [copied, setCopied] = useState(false);
   const captcha = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | undefined>(undefined);
 
@@ -67,9 +69,11 @@ export default function ReportForm() {
         headers: { "Content-Type": "application/json", "X-Turnstile-Token": token },
         body: JSON.stringify({ phone: normalized, category, description })
       });
-      const data = await response.json() as { ok: boolean; error?: string };
+      const data = await response.json() as { ok: boolean; error?: string; report?: { id?: string; status?: string } };
       if (!response.ok || !data.ok) throw new Error(data.error ?? "Pengiriman gagal.");
-      setMessage("Laporan diterima dan menunggu moderasi.");
+      setMessage("Laporan diterima dan menunggu moderasi. Simpan ID referensi ini untuk keperluan tindak lanjut.");
+      setReceiptId(data.report?.id ?? "");
+      setCopied(false);
       setPhone(""); setDescription(""); setToken("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Terjadi kesalahan jaringan.");
@@ -100,6 +104,6 @@ export default function ReportForm() {
       <button disabled={busy || !SITE_KEY} className="search-button" type="submit">{busy ? "Mengirim..." : "Kirim laporan"} <Send size={15}/></button>
       <span className="text-xs text-hc-muted">Nomor diindeks dengan HMAC.</span>
     </div>
-    {message && <p role="status" className="rounded-xl border border-hc-line p-3 text-xs text-hc-muted">{message}</p>}
+    {message && <div role="status" className="grid gap-3 rounded-xl border border-hc-line p-3 text-xs text-hc-muted"><p>{message}</p>{receiptId && <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-black/20 p-3"><div className="min-w-0"><p className="text-[10px] uppercase tracking-wide text-hc-muted">Report reference</p><p className="mt-1 break-all font-mono text-xs text-white">{receiptId}</p></div><button type="button" onClick={() => { void navigator.clipboard.writeText(receiptId).then(() => setCopied(true)).catch(() => setCopied(false)); }} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs text-white">{copied ? <Check size={13}/> : <Copy size={13}/>} {copied ? "Tersalin" : "Salin ID"}</button></div>}</div>}
   </form>;
 }

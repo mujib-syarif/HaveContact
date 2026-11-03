@@ -79,7 +79,12 @@ export default {
   if(!allowedOrigin(request,env))return json(request,env,{ok:false,error:"Origin not allowed"},403);
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(request,env)});
   if(request.method==="GET"&&url.pathname==="/api/health")return json(request,env,{ok:true,service:"havecontact-api",environment:env.APP_ENV??"unknown"});
-  if(!env.DB||!env.PHONE_HASH_SECRET)return json(request,env,{ok:false,error:"Service is not configured"},503);
+  const production=env.APP_ENV==="production";
+  if(!env.DB||!env.PHONE_HASH_SECRET||(production&&env.PHONE_HASH_SECRET.length<32)||
+    (production&&(!env.ADMIN_API_TOKEN||env.ADMIN_API_TOKEN.length<32))||
+    (production&&(env.ALLOWED_ORIGINS??"").split(",").some(origin=>origin.trim()==="*"))) {
+    return json(request,env,{ok:false,error:"Service is not configured securely"},503);
+  }
 
   if(url.pathname==="/api/admin/reports"&&request.method==="GET"){
     const adminRate=await rateLimit(request,env,"admin",20,60);

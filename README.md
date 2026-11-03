@@ -90,7 +90,7 @@ Rate limiting uses HMAC-derived request buckets rather than storing raw client I
 
 ## Automated checks
 
-Run `npm test` for phone-number normalization, numbering metadata, bounded JSON parsing, report-description validation, and atomic D1 write orchestration tests. CI runs typecheck, tests, and production build on pushes and pull requests.
+Run `npm test` for phone-number normalization, numbering metadata, bounded JSON parsing, report-description validation, and atomic D1 write orchestration tests. CI runs frontend and Cloudflare Worker typechecks, tests, local D1 migration validation, and production build on pushes and pull requests.
 
 
 ## Moderation audit

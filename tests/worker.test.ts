@@ -408,6 +408,34 @@ describe("HaveContact Worker API", () => {
     expect(db.batch).not.toHaveBeenCalled();
   });
 
+
+  it("accepts Turnstile-verified correction feedback without storing a raw phone number", async () => {
+    const { env, db } = makeEnv({ TURNSTILE_SECRET: "test-turnstile-secret" });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ success: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const response = await worker.fetch(new Request("https://api.example/api/v1/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Turnstile-Token": "valid-test-token", "CF-Connecting-IP": "203.0.113.90" },
+        body: JSON.stringify({ phone: "+6281234567890", requestType: "correction", details: "Informasi ini sudah tidak sesuai dengan pengalaman terbaru." })
+      }), env as never);
+      expect(response.status).toBe(201);
+      await expect(json(response)).resolves.toMatchObject({ ok: true, feedback: { status: "pending" } });
+      expect(db.prepare).toHaveBeenCalled();
+      expect(db.prepare.mock.calls.some(([sql]) => String(sql).includes("INSERT INTO community_feedback"))).toBe(true);
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("rejects feedback without Turnstile verification", async () => {
+    const { env, db } = makeEnv({ TURNSTILE_SECRET: "test-turnstile-secret" });
+    const response = await worker.fetch(new Request("https://api.example/api/v1/feedback", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: "+6281234567890", requestType: "abuse", details: "This report contains abusive or fabricated content." })
+    }), env as never);
+    expect(response.status).toBe(403);
+    expect(db.prepare).not.toHaveBeenCalled();
+  });
+
   it("reports readiness only when production secrets and HTTPS origins are configured", async () => {
     const { env } = makeEnv({
       APP_ENV: "production",

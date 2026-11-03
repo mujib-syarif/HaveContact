@@ -12,6 +12,7 @@ type LookupResult = {
   reportCount: number;
   categories: { name: string; count: number }[];
   identity: null;
+  labels: { label: string; mentions: number; source: string; verified: boolean }[];
   metadata: { country: string | null; countryCallingCode: string; nationalNumber: string; numberType: string | null; valid: boolean } | null;
   disclaimer: string;
 };
@@ -67,13 +68,14 @@ function App() {
     <section className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 pb-20 pt-16 text-center sm:px-8 sm:pt-24">
       <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-hc-line bg-white/[0.03] px-3.5 py-2 text-[11px] font-semibold tracking-[0.16em] text-hc-lime"><span className="h-1.5 w-1.5 rounded-full bg-hc-lime shadow-[0_0_12px_#c4f36b]"/>COMMUNITY PHONE INTELLIGENCE</div>
       <h1 className="max-w-3xl text-4xl font-semibold leading-[1.08] tracking-[-0.055em] sm:text-6xl">Kenali nomornya.<br/><span className="text-hc-lime">Pahami risikonya.</span></h1>
-      <p className="mt-6 max-w-xl text-sm leading-7 text-hc-muted sm:text-base">Cari informasi nomor telepon dan baca laporan komunitas. Lebih waspada, tanpa mengorbankan privasi.</p>
+      <p className="mt-6 max-w-xl text-sm leading-7 text-hc-muted sm:text-base">Cari label bisnis, kategori komunitas, dan reputasi nomor telepon. Lebih waspada, tanpa mengorbankan privasi.</p>
       <form onSubmit={handleSearch} className="search-shell mt-10 w-full max-w-2xl text-left">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-5"><Search className="shrink-0 text-hc-lime" size={21}/><label className="sr-only" htmlFor="phone-search">Nomor telepon</label><input id="phone-search" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Masukkan nomor, contoh +62 812..." inputMode="tel" autoComplete="tel" className="min-w-0 flex-1 bg-transparent py-2 text-sm text-white outline-none placeholder:text-[#697064] sm:text-base"/><button type="submit" disabled={busy} className="search-button">{busy ? "Mencari..." : "Cari"} <ArrowUpRight size={16}/></button></div>
         {error && <p role="alert" className="border-t border-hc-line px-5 py-3 text-xs text-amber-200">{error}</p>}
       </form>
       {result && <div className="result-card mt-5 w-full max-w-2xl text-left">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs text-hc-muted">Hasil pencarian</p><p className="mt-1 text-lg font-semibold">{result.number}</p></div><span className={result.reportCount ? "risk-pill" : "neutral-pill"}>{result.reportCount ? "Ada laporan komunitas" : "Belum ada laporan"}</span></div>
+        {result.labels?.length > 0 && <div className="mini-stat mt-4"><p className="text-xs text-hc-muted">Nama bisnis / label komunitas</p><div className="mt-2 flex flex-wrap gap-2">{result.labels.map((item,index)=><span key={`${item.label}-${index}`} className="rounded-full border border-hc-lime/25 bg-hc-lime/10 px-3 py-1.5 text-xs text-hc-lime">{item.label}<span className="ml-2 text-hc-muted">{item.mentions} kontribusi</span></span>)}</div><p className="mt-2 text-[10px] text-hc-muted">Label komunitas dimoderasi, bukan identitas pemilik yang terverifikasi.</p></div>}
         <div className="mt-5 grid grid-cols-2 gap-3"><div className="mini-stat"><p className="text-2xl font-semibold">{result.reportCount}</p><p className="text-xs text-hc-muted">Laporan disetujui</p></div><div className="mini-stat"><p className="text-sm font-semibold">{result.categories.length ? result.categories.map(c=>c.name).join(", ") : "Belum tersedia"}</p><p className="text-xs text-hc-muted">Kategori laporan</p></div></div>
         {result.metadata && <div className="mini-stat mt-3"><p className="text-xs text-hc-muted">Metadata nomor</p><p className="mt-1 text-sm font-semibold">{result.metadata.country ?? "Wilayah tidak diketahui"} <span className="text-hc-muted">(+{result.metadata.countryCallingCode})</span></p><p className="mt-1 text-xs text-hc-muted">Jenis: {result.metadata.numberType ?? "Tidak teridentifikasi"}</p></div>}
         <p className="mt-4 text-xs leading-5 text-hc-muted">{result.disclaimer}</p>

@@ -13,7 +13,7 @@ describe("operational data retention", () => {
     };
     await cleanupExpiredOperationalData(db as never);
     expect(db.batch).toHaveBeenCalledTimes(1);
-    expect(statements).toHaveLength(7);
+    expect(statements).toHaveLength(8);
     expect(statements[0]).toContain("DELETE FROM moderation_logs");
     expect(statements[0]).toContain("-365 days");
     expect(statements[0]).toContain("-180 days");
@@ -30,5 +30,8 @@ describe("operational data retention", () => {
     expect(statements[6]).toContain("DELETE FROM business_claims");
     expect(statements[6]).toContain("-90 days");
     expect(statements[6]).toContain("-365 days");
+    expect(statements[7]).toContain("DELETE FROM identity_claims");
+    expect(statements[7]).toContain("-90 days");
+    expect(statements[7]).toContain("-365 days");
   });
 });

@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import ReportForm from "./ReportForm";
 import RemovalForm from "./RemovalForm";
 import FeedbackForm from "./FeedbackForm";
+import BusinessClaimForm from "./BusinessClaimForm";
 import AdminPanel from "./AdminPanel";
 import { normalizePhone } from "../shared/phone";
 import { Search, ShieldCheck, Phone, Flag, Users, ArrowUpRight, Menu, X, Globe2, LockKeyhole } from "lucide-react";
@@ -13,6 +14,7 @@ type LookupResult = {
   categories: { name: string; count: number }[];
   identity: null;
   labels: { label: string; mentions: number; source: string; verified: boolean }[];
+  businessProfiles: { name: string; website: string; publicEmail: string | null; verified: boolean; verifiedAt: string }[];
   metadata: { country: string | null; countryCallingCode: string; nationalNumber: string; numberType: string | null; valid: boolean } | null;
   disclaimer: string;
 };
@@ -76,6 +78,7 @@ function App() {
       {result && <div className="result-card mt-5 w-full max-w-2xl text-left">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs text-hc-muted">Hasil pencarian</p><p className="mt-1 text-lg font-semibold">{result.number}</p></div><span className={result.reportCount ? "risk-pill" : "neutral-pill"}>{result.reportCount ? "Ada laporan komunitas" : "Belum ada laporan"}</span></div>
         {result.labels?.length > 0 && <div className="mini-stat mt-4"><p className="text-xs text-hc-muted">Nama bisnis / label komunitas</p><div className="mt-2 flex flex-wrap gap-2">{result.labels.map((item,index)=><span key={`${item.label}-${index}`} className="rounded-full border border-hc-lime/25 bg-hc-lime/10 px-3 py-1.5 text-xs text-hc-lime">{item.label}<span className="ml-2 text-hc-muted">{item.mentions} kontribusi</span></span>)}</div><p className="mt-2 text-[10px] text-hc-muted">Label komunitas dimoderasi, bukan identitas pemilik yang terverifikasi.</p></div>}
+        {result.businessProfiles?.length>0&&<div className="mini-stat mt-4"><p className="text-xs font-semibold text-hc-lime">Profil bisnis terverifikasi</p><div className="mt-2 space-y-3">{result.businessProfiles.map((profile,index)=><div key={`${profile.name}-${index}`} className="rounded-xl border border-hc-lime/20 bg-hc-lime/5 p-3"><p className="text-sm font-semibold">{profile.name}</p><a href={profile.website} target="_blank" rel="noreferrer" className="mt-1 block break-all text-xs text-hc-lime underline">{profile.website}</a>{profile.publicEmail&&<p className="mt-1 text-xs text-hc-muted">{profile.publicEmail}</p>}<p className="mt-2 text-[10px] text-hc-muted">Diverifikasi melalui peninjauan manual</p></div>)}</div></div>}
         <div className="mt-5 grid grid-cols-2 gap-3"><div className="mini-stat"><p className="text-2xl font-semibold">{result.reportCount}</p><p className="text-xs text-hc-muted">Laporan disetujui</p></div><div className="mini-stat"><p className="text-sm font-semibold">{result.categories.length ? result.categories.map(c=>c.name).join(", ") : "Belum tersedia"}</p><p className="text-xs text-hc-muted">Kategori laporan</p></div></div>
         {result.metadata && <div className="mini-stat mt-3"><p className="text-xs text-hc-muted">Metadata nomor</p><p className="mt-1 text-sm font-semibold">{result.metadata.country ?? "Wilayah tidak diketahui"} <span className="text-hc-muted">(+{result.metadata.countryCallingCode})</span></p><p className="mt-1 text-xs text-hc-muted">Jenis: {result.metadata.numberType ?? "Tidak teridentifikasi"}</p></div>}
         <p className="mt-4 text-xs leading-5 text-hc-muted">{result.disclaimer}</p>
@@ -89,6 +92,9 @@ function App() {
     <section id="community" className="relative z-10 mx-auto max-w-6xl px-5 py-16 sm:px-8">
       <div className="mb-6"><p className="section-kicker">COMMUNITY FIRST</p><h2 className="mt-3 text-2xl font-semibold">Bantu komunitas lebih waspada.</h2><p className="mt-2 text-sm text-hc-muted">Laporan ditinjau sebelum memengaruhi hasil pencarian. Jangan kirim data pribadi.</p></div>
       <ReportForm/>
+      <div className="mb-6 mt-12"><p className="section-kicker">BUSINESS IDENTITY</p><h3 className="mt-3 text-xl font-semibold">Pemilik bisnis? Klaim nomor resmi Anda.</h3><p className="mt-2 text-sm text-hc-muted">Ajukan profil bisnis dan bukti publik yang menghubungkan nomor dengan bisnis. Profil baru tampil setelah diverifikasi manual.</p></div>
+      <BusinessClaimForm/>
+
       <div className="mb-6 mt-12"><p className="section-kicker">YOUR DATA, YOUR CONTROL</p><h3 className="mt-3 text-xl font-semibold">Perlu menarik laporan?</h3><p className="mt-2 text-sm text-hc-muted">Gunakan ID referensi yang diterima saat mengirim laporan.</p></div>
       <RemovalForm/>
       <div className="mb-6 mt-12"><p className="section-kicker">CORRECTION & SAFETY</p><h3 className="mt-3 text-xl font-semibold">Ada informasi yang perlu ditinjau?</h3><p className="mt-2 text-sm text-hc-muted">Kirim koreksi atau laporkan penyalahgunaan secara privat. Masukan tidak langsung mengubah hasil pencarian.</p></div>

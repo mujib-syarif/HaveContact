@@ -108,12 +108,18 @@ export default {
     return json(request,env,{ok:false,error:"Service is not configured securely"},503);
   }
 
-  if((url.pathname==="/api/admin/reports"||url.pathname==="/api/admin/feedback")&&request.method==="GET"){
+  if((url.pathname==="/api/admin/reports"||url.pathname==="/api/admin/feedback"||url.pathname==="/api/admin/business-claims")&&request.method==="GET"){
     const adminRate=await rateLimit(request,env,"admin",20,60);
     if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
     const auth=request.headers.get("Authorization")??"";
     const token=auth.startsWith("Bearer ")?auth.slice(7):"";
     if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
+    if(url.pathname==="/api/admin/business-claims"){
+      const status=url.searchParams.get("status")??"pending";
+      if(!["pending","approved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid claim status"},400);
+      const rows=await env.DB.prepare("SELECT id,business_name,website,public_email,proof_url,status,created_at,substr(phone_hash,1,12) AS phone_fingerprint FROM business_claims WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
+      return json(request,env,{ok:true,claims:rows.results??[]});
+    }
     if(url.pathname==="/api/admin/feedback"){
       const status=url.searchParams.get("status")??"pending";
       if(!["pending","resolved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid feedback status"},400);
@@ -139,6 +145,23 @@ export default {
     const result=await env.DB.prepare("UPDATE community_feedback SET status=?,reviewed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='pending'").bind(action,feedbackId).run();
     if((result.meta?.changes??0)!==1)return json(request,env,{ok:false,error:"Feedback not found or already reviewed"},409);
     return json(request,env,{ok:true,feedback:{id:feedbackId,status:action}});
+  }
+
+  const claimParts=url.pathname.split("/");
+  const claimId=claimParts.length===6&&claimParts[1]==="api"&&claimParts[2]==="admin"&&claimParts[3]==="business-claims"&&claimParts[5]==="moderate"&&/^[a-f0-9-]{36}$/i.test(claimParts[4])?claimParts[4]:"";
+  if(request.method==="POST"&&claimId){
+    const adminRate=await rateLimit(request,env,"admin",20,60);
+    if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
+    const auth=request.headers.get("Authorization")??"",token=auth.startsWith("Bearer ")?auth.slice(7):"";
+    if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
+    const parsed=await readJsonObject(request,2048);
+    if(!parsed.data)return json(request,env,{ok:false,error:parsed.error??"Invalid JSON"},400);
+    const action=parsed.data.action,note=typeof parsed.data.note==="string"?parsed.data.note.trim():"";
+    if(action!=="approved"&&action!=="rejected")return json(request,env,{ok:false,error:"Invalid action"},400);
+    if(action==="rejected"&&note.length<5)return json(request,env,{ok:false,error:"Rejection note must contain at least 5 characters"},400);
+    const result=await env.DB.prepare("UPDATE business_claims SET status=?,review_note=?,reviewed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='pending'").bind(action,note||null,claimId).run();
+    if((result.meta?.changes??0)!==1)return json(request,env,{ok:false,error:"Claim not found or already reviewed"},409);
+    return json(request,env,{ok:true,claim:{id:claimId,status:action}});
   }
 
   const parts=url.pathname.split("/");
@@ -202,9 +225,28 @@ export default {
     const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET);
     const row=await env.DB.prepare("SELECT category,COUNT(*) AS total FROM reports WHERE phone_hash=? AND status='approved' GROUP BY category").bind(phoneHash).all<{category:string;total:number}>();
     const labelRows=await env.DB.prepare("SELECT public_label,COUNT(*) AS mentions FROM reports WHERE phone_hash=? AND status='approved' AND public_label IS NOT NULL GROUP BY public_label ORDER BY mentions DESC LIMIT 10").bind(phoneHash).all<{public_label:string;mentions:number}>();
+    const profileRows=await env.DB.prepare("SELECT business_name,website,public_email,reviewed_at FROM business_claims WHERE phone_hash=? AND status='approved' ORDER BY reviewed_at DESC LIMIT 5").bind(phoneHash).all<{business_name:string;website:string;public_email:string|null;reviewed_at:string}>();
     const reports=row.results??[];
     const labels=(labelRows.results??[]).map(item=>({label:item.public_label,mentions:item.mentions,source:"community",verified:false}));
-    return json(request,env,{ok:true,result:{number:phone,metadata:getPhoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),labels,identity:null,disclaimer:"Community labels are user-submitted and moderated; they do not establish personal identity or wrongdoing."}});
+    return json(request,env,{ok:true,result:{number:phone,metadata:getPhoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),labels,businessProfiles:(profileRows.results??[]).map(item=>({name:item.business_name,website:item.website,publicEmail:item.public_email,verified:true,verifiedAt:item.reviewed_at})),identity:null,disclaimer:"Community labels are user-submitted and moderated; they do not establish personal identity or wrongdoing."}});
+  }
+
+  if(request.method==="POST"&&url.pathname==="/api/v1/business-claims"){
+    const rate=await rateLimit(request,env,"business-claim",3,3600);
+    if(!rate.allowed)return json(request,env,{ok:false,error:"Too many claim submissions. Try again later."},429,{"Retry-After":String(rate.retryAfter)});
+    if(!(await verifyTurnstile(request.headers.get("X-Turnstile-Token"),env.TURNSTILE_SECRET)))return json(request,env,{ok:false,error:"Bot verification failed or is not configured"},403);
+    const parsed=await readJsonObject(request,8000);
+    if(!parsed.data)return json(request,env,{ok:false,error:parsed.error??"Invalid JSON"},400);
+    const body=parsed.data,phone=normalizePhone(body.phone),name=typeof body.businessName==="string"?body.businessName.trim():"",website=typeof body.website==="string"?body.website.trim():"",email=typeof body.publicEmail==="string"?body.publicEmail.trim():"",proof=typeof body.proofUrl==="string"?body.proofUrl.trim():"";
+    let validWebsite=false,validProof=!proof;
+    try{const u=new URL(website);validWebsite=u.protocol==="https:"&&u.hostname.includes(".");}catch{}
+    try{const u=new URL(proof);validProof=u.protocol==="https:"&&u.hostname.includes(".");}catch{}
+    if(!phone||name.length<2||name.length>100||hasUnsupportedControlCharacters(name)||!validWebsite||!validProof||email.length>254||(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))return json(request,env,{ok:false,error:"Periksa nomor, nama bisnis, website HTTPS, email publik, dan URL bukti."},400);
+    const hash=await hmac(phone,env.PHONE_HASH_SECRET),id=crypto.randomUUID();
+    const existing=await env.DB.prepare("SELECT id FROM business_claims WHERE phone_hash=? AND status='pending' LIMIT 1").bind(hash).first();
+    if(existing)return json(request,env,{ok:false,error:"Masih ada klaim yang menunggu peninjauan untuk nomor ini."},409);
+    await env.DB.prepare("INSERT INTO business_claims (id,phone_hash,business_name,website,public_email,proof_url) VALUES (?,?,?,?,?,?)").bind(id,hash,name,website,email||null,proof||null).run();
+    return json(request,env,{ok:true,claim:{id,status:"pending"},message:"Klaim diterima dan menunggu verifikasi manual."},201);
   }
 
   if(request.method==="POST"&&url.pathname==="/api/v1/reports"){

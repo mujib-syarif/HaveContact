@@ -34,16 +34,31 @@ npm run dev
 5. Set `VITE_API_BASE_URL=http://localhost:8787` in local `.env`.
 
 ## Production setup
-- Create D1: `npx wrangler d1 create havecontact-db`.
-- Replace the placeholder database ID in `wrangler.toml`.
-- Set each secret separately: `npx wrangler secret put PHONE_HASH_SECRET`, `npx wrangler secret put TURNSTILE_SECRET`, and `npx wrangler secret put ADMIN_API_TOKEN`.
-- Configure a Turnstile widget and set `VITE_TURNSTILE_SITE_KEY` in the frontend build environment. The report form renders the challenge when this key is present.
-- Apply all numbered migrations: `npm run db:remote`.
-- Deploy API: `npx wrangler deploy`.
-- Configure frontend API base URL and deploy the static site.
+
+The Worker has a separate `production` environment. Always use the `--env production` commands below for production secrets, migrations, and deployment.
+
+1. Create the production D1 database: `npx wrangler d1 create havecontact-db`.
+2. Copy the returned database ID into **both** `database_id` entries in `wrangler.toml` (top-level local binding and `env.production` binding).
+3. Configure a Turnstile widget for the frontend hostname. Keep its site key for the frontend and its secret key for the Worker.
+4. Set production Worker secrets:
+   ```bash
+   npx wrangler secret put PHONE_HASH_SECRET --env production
+   npx wrangler secret put TURNSTILE_SECRET --env production
+   npx wrangler secret put ADMIN_API_TOKEN --env production
+   ```
+   Generate independent random values. `PHONE_HASH_SECRET` and `ADMIN_API_TOKEN` must each contain at least 32 characters.
+5. In the Cloudflare dashboard, open the production Worker environment's **Settings > Variables and Secrets** and set `ALLOWED_ORIGINS` to the exact HTTPS frontend origin(s), comma-separated, with no wildcard, path, or trailing slash. Example: `https://havecontact.pages.dev`.
+6. Apply production migrations: `npm run db:remote`.
+7. Run a deployment bundle check: `npm run deploy:api:dry-run`.
+8. Deploy the API: `npm run deploy:api`.
+9. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`, then deploy the static frontend.
+10. Verify `GET https://YOUR_WORKER_DOMAIN/api/ready` returns HTTP 200 and `{"ok":true,"ready":true}` before testing user flows.
+
+The production Worker fails closed unless D1, all three secrets, and a non-empty HTTPS-only exact-origin allowlist are configured. `/api/health` is a liveness endpoint; use `/api/ready` for deployment readiness. Never expose `ADMIN_API_TOKEN` or any Worker secret through a `VITE_*` variable.
 
 ## API
-- `GET /api/health`
+- `GET /api/health` (liveness)
+- `GET /api/ready` (production readiness; HTTP 200 only when required production configuration is valid)
 - `GET /api/v1/lookup?phone=+62812...`
 - `POST /api/v1/reports` (Turnstile required; body: phone, category, description; returns a report reference ID)
 - `POST /api/v1/reports/remove` (body: referenceId; permanently removes the report, moderation history, and orphaned phone hash)
@@ -56,7 +71,7 @@ npm run dev
 - No automatic contact-book uploads, reverse identity claims, or public personal-name tags.
 - Reports require moderation. Authors can remove a submitted report using its reference ID; removal also deletes its moderation history and orphaned phone hash.
 - A report reference ID is a bearer credential: anyone who possesses it can remove that report. It is shown once after submission, should be stored privately, and is rate-limited to 3 removal attempts per IP per hour. This flow proves possession of the reference, not legal identity or ownership of the phone number.
-- Configure a strict CORS allowlist, rate limiting, retention controls, and admin authentication before production.
+- Configure the production HTTPS CORS allowlist, all three Worker secrets, rate limiting, and retention controls before production.
 - GET query strings may be present in infrastructure logs; review logging and retention before production.
 
 ## Verification
@@ -92,7 +107,7 @@ Rate limiting uses HMAC-derived request buckets rather than storing raw client I
 
 ## Automated checks
 
-Run `npm test` for phone-number normalization, numbering metadata, bounded JSON parsing, report-description validation, and atomic D1 write orchestration tests. CI runs frontend and Cloudflare Worker typechecks, tests, local D1 migration validation, and production build on pushes and pull requests.
+Run `npm test` for phone-number normalization, numbering metadata, bounded JSON parsing, report-description validation, and atomic D1 write orchestration tests. CI runs frontend and Cloudflare Worker typechecks, tests, local D1 migration validation, a production Worker bundle dry-run, and production frontend build on pushes and pull requests.
 
 
 ## Moderation audit

@@ -12,14 +12,20 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
-      build-tooling:
+      vite-stack:
         patterns:
           - "vite"
+          - "@vitejs/plugin-react"
+      build-tooling:
+        patterns:
           - "typescript"
           - "postcss"
           - "tailwindcss"
           - "wrangler"
           - "vitest"
+        update-types:
+          - "minor"
+          - "patch"
       npm-minor-patch:
         update-types:
           - "minor"

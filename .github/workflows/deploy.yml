@@ -1,11 +1,9 @@
 name: Deploy HaveContact to Cloudflare
 
+# Manual-only: production (Worker, D1 migrations, Pages) changes only when a maintainer
+# runs this workflow from the main branch. Pushes to main never deploy automatically.
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
 
 permissions:
   contents: read
@@ -16,7 +14,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -60,6 +58,11 @@ jobs:
           npm run typecheck
           npm run typecheck:worker
           npm test
+          npm run build
+      - name: Dry-run Worker bundle
+        run: npm run deploy:api:dry-run
+      - name: Record D1 Time Travel restore point
+        run: npx wrangler d1 time-travel info havecontact-db --env production || echo "::warning::Could not record a Time Travel bookmark; take a manual export before continuing."
       - name: Configure production Worker secrets
         env:
           PHONE_HASH_SECRET: ${{ secrets.PHONE_HASH_SECRET }}

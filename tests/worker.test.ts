@@ -200,6 +200,76 @@ describe("HaveContact Worker API", () => {
     expect(db.prepare).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts a Turnstile-verified report and stores it as pending", async () => {
+    const { env, db } = makeEnv({ TURNSTILE_SECRET: "test-turnstile-secret" });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const response = await worker.fetch(
+        new Request("https://api.example/api/v1/reports", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Turnstile-Token": "valid-test-token",
+            "CF-Connecting-IP": "203.0.113.12"
+          },
+          body: JSON.stringify({
+            phone: "+6281234567890",
+            category: "spam",
+            description: "Repeated unsolicited calls during the night"
+          })
+        }),
+        env as never
+      );
+
+      expect(response.status).toBe(201);
+      await expect(json(response)).resolves.toMatchObject({
+        ok: true,
+        report: { status: "pending" }
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(db.batch).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not store reports when Turnstile verification fails", async () => {
+    const { env, db } = makeEnv({ TURNSTILE_SECRET: "test-turnstile-secret" });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(
+      JSON.stringify({ success: false }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )));
+
+    try {
+      const response = await worker.fetch(
+        new Request("https://api.example/api/v1/reports", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Turnstile-Token": "invalid-test-token",
+            "CF-Connecting-IP": "203.0.113.13"
+          },
+          body: JSON.stringify({
+            phone: "+6281234567890",
+            category: "spam",
+            description: "Repeated unsolicited calls during the night"
+          })
+        }),
+        env as never
+      );
+
+      expect(response.status).toBe(403);
+      expect(db.batch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("fails closed when required service configuration is missing", async () => {
     const { env } = makeEnv({ PHONE_HASH_SECRET: "" });
     const response = await worker.fetch(

@@ -153,6 +153,25 @@ export default {
     return json(request,env,{ok:true,feedback:{id:feedbackId,status:action}});
   }
 
+  const identityParts=url.pathname.split("/");
+  const identityId=identityParts.length===6&&identityParts[1]==="api"&&identityParts[2]==="admin"&&identityParts[3]==="identity-claims"&&identityParts[5]==="moderate"&&/^[a-f0-9-]{36}$/i.test(identityParts[4])?identityParts[4]:"";
+  if(request.method==="POST"&&identityId){
+    const adminRate=await rateLimit(request,env,"admin",20,60);
+    if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests"},429);
+    const auth=request.headers.get("Authorization")??"";
+    const token=auth.startsWith("Bearer ")?auth.slice(7):"";
+    if(!env.ADMIN_API_TOKEN||!safeEqual(token,env.ADMIN_API_TOKEN))return json(request,env,{ok:false,error:"Unauthorized"},401);
+    const parsed=await readJsonObject(request,2048);
+    if(!parsed.data)return json(request,env,{ok:false,error:"Invalid JSON"},400);
+    const action=parsed.data.action;
+    const note=typeof parsed.data.note==="string"?parsed.data.note.trim():"";
+    if(action!=="approved"&&action!=="rejected")return json(request,env,{ok:false,error:"Invalid action"},400);
+    if(action==="rejected"&&note.length<5)return json(request,env,{ok:false,error:"Rejection note required"},400);
+    const result=await env.DB.prepare("UPDATE identity_claims SET status=?,review_note=?,reviewed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='pending'").bind(action,note||null,identityId).run();
+    if((result.meta?.changes??0)!==1)return json(request,env,{ok:false,error:"Claim not found or already reviewed"},409);
+    return json(request,env,{ok:true,claim:{id:identityId,status:action}});
+  }
+
   const claimParts=url.pathname.split("/");
   const claimId=claimParts.length===6&&claimParts[1]==="api"&&claimParts[2]==="admin"&&claimParts[3]==="business-claims"&&claimParts[5]==="moderate"&&/^[a-f0-9-]{36}$/i.test(claimParts[4])?claimParts[4]:"";
   if(request.method==="POST"&&claimId){

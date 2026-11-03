@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import ReportForm from "./ReportForm";
+import RemovalForm from "./RemovalForm";
 import AdminPanel from "./AdminPanel";
 import { normalizePhone } from "../shared/phone";
 import { Search, ShieldCheck, Phone, Flag, Users, ArrowUpRight, Menu, X, Globe2, LockKeyhole } from "lucide-react";
@@ -85,6 +86,8 @@ function App() {
     <section id="community" className="relative z-10 mx-auto max-w-6xl px-5 py-16 sm:px-8">
       <div className="mb-6"><p className="section-kicker">COMMUNITY FIRST</p><h2 className="mt-3 text-2xl font-semibold">Bantu komunitas lebih waspada.</h2><p className="mt-2 text-sm text-hc-muted">Laporan ditinjau sebelum memengaruhi hasil pencarian. Jangan kirim data pribadi.</p></div>
       <ReportForm/>
+      <div className="mb-6 mt-12"><p className="section-kicker">YOUR DATA, YOUR CONTROL</p><h3 className="mt-3 text-xl font-semibold">Perlu menarik laporan?</h3><p className="mt-2 text-sm text-hc-muted">Gunakan ID referensi yang diterima saat mengirim laporan.</p></div>
+      <RemovalForm/>
     </section>
     <footer id="privacy" className="relative z-10 border-t border-hc-line/70"><div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-xs text-hc-muted sm:px-8 md:flex-row md:items-center md:justify-between"><p>© {new Date().getFullYear()} HaveContact. Independent community phone intelligence.</p><p className="flex items-center gap-2"><ShieldCheck size={14} className="text-hc-lime"/>Privacy-first by design</p></div></footer>
   </main>;

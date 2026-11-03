@@ -3,6 +3,7 @@ import ReportForm from "./ReportForm";
 import RemovalForm from "./RemovalForm";
 import FeedbackForm from "./FeedbackForm";
 import BusinessClaimForm from "./BusinessClaimForm";
+import IdentityClaimForm from "./IdentityClaimForm";
 import AdminPanel from "./AdminPanel";
 import { normalizePhone } from "../shared/phone";
 import { Search, ShieldCheck, Phone, Flag, Users, ArrowUpRight, Menu, X, Globe2, LockKeyhole } from "lucide-react";
@@ -94,6 +95,7 @@ function App() {
       <ReportForm/>
       <div className="mb-6 mt-12"><p className="section-kicker">BUSINESS IDENTITY</p><h3 className="mt-3 text-xl font-semibold">Pemilik bisnis? Klaim nomor resmi Anda.</h3><p className="mt-2 text-sm text-hc-muted">Ajukan profil bisnis dan bukti publik yang menghubungkan nomor dengan bisnis. Profil baru tampil setelah diverifikasi manual.</p></div>
       <BusinessClaimForm/>
+      <div className="mb-6 mt-12"><p className="section-kicker">PUBLIC IDENTITY</p><h3 className="mt-3 text-xl font-semibold">Daftarkan nama Anda secara sukarela</h3><p className="mt-2 text-sm text-hc-muted">Nama hanya muncul setelah bukti publik ditinjau moderator.</p></div><IdentityClaimForm/>
 
       <div className="mb-6 mt-12"><p className="section-kicker">YOUR DATA, YOUR CONTROL</p><h3 className="mt-3 text-xl font-semibold">Perlu menarik laporan?</h3><p className="mt-2 text-sm text-hc-muted">Gunakan ID referensi yang diterima saat mengirim laporan.</p></div>
       <RemovalForm/>

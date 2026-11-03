@@ -433,7 +433,8 @@ describe("HaveContact Worker API", () => {
       body: JSON.stringify({ phone: "+6281234567890", requestType: "abuse", details: "This report contains abusive or fabricated content." })
     }), env as never);
     expect(response.status).toBe(403);
-    expect(db.prepare).not.toHaveBeenCalled();
+    expect(db.prepare).toHaveBeenCalledTimes(1);
+    expect(db.prepare.mock.calls.some(([sql]) => String(sql).includes("INSERT INTO community_feedback"))).toBe(false);
   });
 
   it("reports readiness only when production secrets and HTTPS origins are configured", async () => {

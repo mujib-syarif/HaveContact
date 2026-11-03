@@ -20,6 +20,9 @@ migrations_dir = "migrations"
 crons = ["17 3 * * *"]
 
 # Explicit production environment. Replace this ID with the production D1 database ID.
+[env.production]
+workers_dev = true
+
 [env.production.vars]
 APP_ENV = "production"
 

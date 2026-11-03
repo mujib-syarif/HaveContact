@@ -10,9 +10,11 @@
     "preview": "vite preview",
     "api:dev": "wrangler dev",
     "db:local": "wrangler d1 migrations apply havecontact-db --local",
-    "db:remote": "wrangler d1 migrations apply havecontact-db --remote",
+    "db:remote": "wrangler d1 migrations apply havecontact-db --remote --env production",
     "test": "vitest run",
-    "typecheck:worker": "wrangler types worker-configuration.d.ts && tsc --noEmit --target ES2022 --module ESNext --moduleResolution bundler --lib ES2022,DOM --strict --skipLibCheck worker-configuration.d.ts worker/index.ts worker/request.ts worker/writes.ts worker/validation.ts worker/maintenance.ts shared/phone.ts"
+    "typecheck:worker": "wrangler types worker-configuration.d.ts && tsc --noEmit --target ES2022 --module ESNext --moduleResolution bundler --lib ES2022,DOM --strict --skipLibCheck worker-configuration.d.ts worker/index.ts worker/request.ts worker/writes.ts worker/validation.ts worker/maintenance.ts shared/phone.ts",
+    "deploy:api": "wrangler deploy --env production",
+    "deploy:api:dry-run": "wrangler deploy --env production --dry-run"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

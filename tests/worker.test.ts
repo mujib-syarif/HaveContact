@@ -17,8 +17,8 @@ function makeEnv(overrides: Record<string, unknown> = {}, rateCount = 1) {
   return {
     env: {
       DB: db,
-      PHONE_HASH_SECRET: "test-secret",
-      ADMIN_API_TOKEN: "test-admin-token",
+      PHONE_HASH_SECRET: "test-secret-value-that-is-at-least-thirty-two-characters",
+      ADMIN_API_TOKEN: "test-admin-token-value-at-least-32-chars",
       ALLOWED_ORIGINS: "https://havecontact.example",
       APP_ENV: "test",
       ...overrides
@@ -333,6 +333,24 @@ describe("HaveContact Worker API", () => {
     );
     await scheduledTask;
     expect(db.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects weak production secrets and wildcard CORS configuration", async () => {
+    const { env } = makeEnv({
+      APP_ENV: "production",
+      PHONE_HASH_SECRET: "short",
+      ADMIN_API_TOKEN: "short",
+      ALLOWED_ORIGINS: "*"
+    });
+    const response = await worker.fetch(
+      new Request("https://api.example/api/v1/lookup?phone=%2B6281234567890"),
+      env as never
+    );
+    expect(response.status).toBe(503);
+    await expect(json(response)).resolves.toMatchObject({
+      ok: false,
+      error: "Service is not configured securely"
+    });
   });
 
   it("fails closed when required service configuration is missing", async () => {

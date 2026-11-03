@@ -14,3 +14,4 @@ migrations_dir = "migrations"
 # Configure secrets with:
 # npx wrangler secret put PHONE_HASH_SECRET
 # npx wrangler secret put TURNSTILE_SECRET
+# npx wrangler secret put ADMIN_API_TOKEN

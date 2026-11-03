@@ -108,7 +108,7 @@ export default {
     return json(request,env,{ok:false,error:"Service is not configured securely"},503);
   }
 
-  if(url.pathname==="/api/admin/reports"&&request.method==="GET"){
+  if((url.pathname==="/api/admin/reports"||url.pathname==="/api/admin/feedback")&&request.method==="GET"){
     const adminRate=await rateLimit(request,env,"admin",20,60);
     if(!adminRate.allowed)return json(request,env,{ok:false,error:"Too many admin requests. Please wait before trying again."},429,{"Retry-After":String(adminRate.retryAfter)});
     const auth=request.headers.get("Authorization")??"";

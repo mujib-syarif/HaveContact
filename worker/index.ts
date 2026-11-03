@@ -77,16 +77,34 @@ function allowedOrigin(request:Request,env:Env):boolean{
   const allowed=(env.ALLOWED_ORIGINS??"").split(",").map(v=>v.trim()).filter(Boolean);
   return allowed.includes(origin);
 }
+function productionConfigReady(env:Env):boolean{
+  const origins=(env.ALLOWED_ORIGINS??"").split(",").map(value=>value.trim()).filter(Boolean);
+  const validOrigins=origins.length>0&&origins.every(origin=>{
+    try{
+      const parsed=new URL(origin);
+      return parsed.protocol==="https:"&&parsed.origin===origin;
+    }catch{return false;}
+  });
+  return Boolean(
+    env.DB&&
+    env.PHONE_HASH_SECRET&&env.PHONE_HASH_SECRET.length>=32&&
+    env.ADMIN_API_TOKEN&&env.ADMIN_API_TOKEN.length>=32&&
+    env.TURNSTILE_SECRET&&
+    validOrigins
+  );
+}
 export default {
  async fetch(request:Request,env:Env):Promise<Response>{
   const url=new URL(request.url);
   if(!allowedOrigin(request,env))return json(request,env,{ok:false,error:"Origin not allowed"},403);
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:cors(request,env)});
   if(request.method==="GET"&&url.pathname==="/api/health")return json(request,env,{ok:true,service:"havecontact-api",environment:env.APP_ENV??"unknown"});
+  if(request.method==="GET"&&url.pathname==="/api/ready"){
+    const ready=env.APP_ENV==="production"?productionConfigReady(env):Boolean(env.DB&&env.PHONE_HASH_SECRET);
+    return json(request,env,{ok:ready,service:"havecontact-api",ready},ready?200:503);
+  }
   const production=env.APP_ENV==="production";
-  if(!env.DB||!env.PHONE_HASH_SECRET||(production&&env.PHONE_HASH_SECRET.length<32)||
-    (production&&(!env.ADMIN_API_TOKEN||env.ADMIN_API_TOKEN.length<32))||
-    (production&&(env.ALLOWED_ORIGINS??"").split(",").some(origin=>origin.trim()==="*"))) {
+  if(!env.DB||!env.PHONE_HASH_SECRET||(production&&!productionConfigReady(env))) {
     return json(request,env,{ok:false,error:"Service is not configured securely"},503);
   }
 

@@ -407,4 +407,38 @@ describe("HaveContact Worker API", () => {
     expect(response.status).toBe(400);
     expect(db.batch).not.toHaveBeenCalled();
   });
+
+  it("reports readiness only when production secrets and HTTPS origins are configured", async () => {
+    const { env } = makeEnv({
+      APP_ENV: "production",
+      TURNSTILE_SECRET: "test-turnstile-secret",
+      ALLOWED_ORIGINS: "https://havecontact.example"
+    });
+    const response = await worker.fetch(
+      new Request("https://api.example/api/ready"),
+      env as never
+    );
+    expect(response.status).toBe(200);
+    await expect(json(response)).resolves.toMatchObject({ ok: true, ready: true });
+  });
+
+  it.each([
+    ["missing Turnstile secret", { TURNSTILE_SECRET: "" }],
+    ["empty origin allowlist", { ALLOWED_ORIGINS: "" }],
+    ["wildcard origin", { ALLOWED_ORIGINS: "*" }],
+    ["insecure HTTP origin", { ALLOWED_ORIGINS: "http://havecontact.example" }],
+    ["origin with a path", { ALLOWED_ORIGINS: "https://havecontact.example/app" }]
+  ])("fails production readiness with %s", async (_label, overrides) => {
+    const { env } = makeEnv({
+      APP_ENV: "production",
+      TURNSTILE_SECRET: "test-turnstile-secret",
+      ...overrides
+    });
+    const response = await worker.fetch(
+      new Request("https://api.example/api/ready"),
+      env as never
+    );
+    expect(response.status).toBe(503);
+    await expect(json(response)).resolves.toMatchObject({ ok: false, ready: false });
+  });
 });

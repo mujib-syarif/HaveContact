@@ -56,6 +56,29 @@ The Worker has a separate `production` environment. Always use the `--env produc
 
 The production Worker fails closed unless D1, all three secrets, and a non-empty HTTPS-only exact-origin allowlist are configured. `/api/health` is a liveness endpoint; use `/api/ready` for deployment readiness. Never expose `ADMIN_API_TOKEN` or any Worker secret through a `VITE_*` variable.
 
+### GitHub Actions production deployment
+
+The repository includes a manual deployment workflow at `.github/workflows/deploy.yml`. To prepare it:
+
+1. Create the Cloudflare Pages project once: `npx wrangler pages project create YOUR_PAGES_PROJECT --production-branch main`.
+2. In GitHub, open **Settings > Environments** and create an environment named `production`.
+3. Add these environment **secrets**:
+   - `CLOUDFLARE_API_TOKEN` (Cloudflare token with Workers Scripts Edit, D1 Edit, and Pages Edit permissions)
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `PHONE_HASH_SECRET` (at least 32 random characters)
+   - `TURNSTILE_SECRET`
+   - `ADMIN_API_TOKEN` (at least 32 random characters)
+4. Add these environment **variables**:
+   - `WORKER_BASE_URL` (Worker HTTPS origin, no trailing slash)
+   - `FRONTEND_URL` (Pages HTTPS origin, no trailing slash)
+   - `PAGES_PROJECT_NAME` (the Pages project created in step 1)
+   - `ALLOWED_ORIGINS` (must exactly match `FRONTEND_URL`)
+   - `VITE_TURNSTILE_SITE_KEY`
+5. Confirm the production D1 ID is filled in both production and top-level bindings in `wrangler.toml`.
+6. Run **Actions > Deploy HaveContact to Cloudflare > Run workflow**.
+
+The workflow runs dependency audit, typechecks, tests, applies D1 migrations, updates Worker secrets, deploys the API, checks `/api/ready`, builds the frontend, deploys Pages, and verifies the frontend response. It is manual-only; pushes to `main` do not deploy automatically. `ALLOWED_ORIGINS` is stored as a Worker secret by this workflow so it can be updated in the same controlled deployment.
+
 ## API
 - `GET /api/health` (liveness)
 - `GET /api/ready` (production readiness; HTTP 200 only when required production configuration is valid)
@@ -96,7 +119,7 @@ MIT - see LICENSE.
 ## Security and deployment checklist
 
 1. Create the Cloudflare D1 database and replace the placeholder database ID in `wrangler.toml`.
-2. Apply all numbered migrations, including `0002_request_limits.sql`, `0003_moderation_reason.sql`, and `0004_query_indexes.sql`, using `npx wrangler d1 migrations apply havecontact-db --remote`.
+2. Apply all numbered migrations, including `0002_request_limits.sql`, `0003_moderation_reason.sql`, and `0004_query_indexes.sql`, using `npm run db:remote` (targets the explicit production environment).
 3. Set Worker secrets: `PHONE_HASH_SECRET`, `TURNSTILE_SECRET`, and `ADMIN_API_TOKEN`.
 4. Set the Worker variable `ALLOWED_ORIGINS` to the exact deployed frontend origin(s), comma-separated. The API intentionally does not send wildcard CORS permission.
 5. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`.
@@ -128,4 +151,4 @@ Run `npm test` for phone-number normalization, numbering metadata, bounded JSON 
 
 ### Production secret requirements
 
-When `APP_ENV=production`, the Worker fails closed unless `PHONE_HASH_SECRET` and `ADMIN_API_TOKEN` are each at least 32 characters and `ALLOWED_ORIGINS` does not contain a wildcard origin. Use independently generated random secrets; do not reuse credentials.
+When `APP_ENV=production`, the Worker fails closed unless D1 is bound, `PHONE_HASH_SECRET` and `ADMIN_API_TOKEN` are each at least 32 characters, `TURNSTILE_SECRET` is present, and `ALLOWED_ORIGINS` contains at least one exact HTTPS origin. Wildcards, HTTP origins, and origin paths are rejected. Use independently generated random secrets; do not reuse credentials.

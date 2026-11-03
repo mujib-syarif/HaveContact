@@ -245,7 +245,15 @@ export default {
     const hash=await hmac(phone,env.PHONE_HASH_SECRET),id=crypto.randomUUID();
     const existing=await env.DB.prepare("SELECT id FROM business_claims WHERE phone_hash=? AND status='pending' LIMIT 1").bind(hash).first();
     if(existing)return json(request,env,{ok:false,error:"Masih ada klaim yang menunggu peninjauan untuk nomor ini."},409);
-    await env.DB.prepare("INSERT INTO business_claims (id,phone_hash,business_name,website,public_email,proof_url) VALUES (?,?,?,?,?,?)").bind(id,hash,name,website,email||null,proof||null).run();
+    try {
+      await env.DB.prepare("INSERT INTO business_claims (id,phone_hash,business_name,website,public_email,proof_url) VALUES (?,?,?,?,?,?)").bind(id,hash,name,website,email||null,proof||null).run();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.toLowerCase().includes("unique") || message.toLowerCase().includes("constraint")) {
+        return json(request,env,{ok:false,error:"Masih ada klaim yang menunggu peninjauan untuk nomor ini."},409);
+      }
+      throw error;
+    }
     return json(request,env,{ok:true,claim:{id,status:"pending"},message:"Klaim diterima dan menunggu verifikasi manual."},201);
   }
 

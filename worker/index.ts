@@ -184,7 +184,7 @@ export default {
     const phone=normalizePhone(body.phone);
     const requestType=body.requestType;
     const details=typeof body.details==="string"?body.details.trim():"";
-    if(!phone||!["correction","abuse"].includes(String(requestType)))return json(request,env,{ok:false,error:"Invalid phone number or request type"},400);
+    if(!phone||(requestType!=="correction"&&requestType!=="abuse"))return json(request,env,{ok:false,error:"Invalid phone number or request type"},400);
     if(details.length<10||details.length>500||hasUnsupportedControlCharacters(details))return json(request,env,{ok:false,error:"Details must be 10-500 characters and contain no unsupported control characters"},400);
     const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET);
     const phoneRate=await rateLimit(request,env,"feedback-phone",2,86400,phoneHash);

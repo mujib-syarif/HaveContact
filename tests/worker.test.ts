@@ -270,6 +270,42 @@ describe("HaveContact Worker API", () => {
     }
   });
 
+  it("limits community reports per phone number across different IP addresses", async () => {
+    const { env, db } = makeEnv({ TURNSTILE_SECRET: "test-turnstile-secret" }, 4);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )));
+    try {
+      const response = await worker.fetch(
+        new Request("https://api.example/api/v1/reports", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Turnstile-Token": "valid-test-token",
+            "CF-Connecting-IP": "203.0.113.99"
+          },
+          body: JSON.stringify({
+            phone: "+6281234567890",
+            category: "spam",
+            description: "Repeated unsolicited calls during the night"
+          })
+        }),
+        env as never
+      );
+      expect(response.status).toBe(429);
+      expect(response.headers.get("Retry-After")).toBeTruthy();
+      await expect(json(response)).resolves.toMatchObject({
+        ok: false,
+        error: "This number has reached its community report limit. Try again later."
+      });
+      expect(db.batch).not.toHaveBeenCalled();
+      expect(db.prepare).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("fails closed when required service configuration is missing", async () => {
     const { env } = makeEnv({ PHONE_HASH_SECRET: "" });
     const response = await worker.fetch(

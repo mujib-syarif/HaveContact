@@ -107,3 +107,8 @@ Run `npm test` for phone-number normalization, numbering metadata, bounded JSON 
 - Moderation audit records expire after 365 days; records attached to an expired report are removed first.
 - Orphaned phone hashes, expired HMAC rate-limit buckets older than 7 days, and abuse-event records older than 90 days are pruned automatically.
 - Retention is enforced by the daily scheduled Worker cleanup. Publish this policy clearly before collecting real reports; it is not a substitute for a verified user-requested correction or removal process.
+
+
+### Production secret requirements
+
+When `APP_ENV=production`, the Worker fails closed unless `PHONE_HASH_SECRET` and `ADMIN_API_TOKEN` are each at least 32 characters and `ALLOWED_ORIGINS` does not contain a wildcard origin. Use independently generated random secrets; do not reuse credentials.

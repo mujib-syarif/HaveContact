@@ -378,4 +378,33 @@ describe("HaveContact Worker API", () => {
     expect(response.status).toBe(503);
     await expect(json(response)).resolves.toMatchObject({ ok: false, error: "Service is not configured securely" });
   });
+
+  it("removes a report through its unguessable reference ID", async () => {
+    const { env, db } = makeEnv();
+    const response = await worker.fetch(
+      new Request("https://api.example/api/v1/reports/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.55" },
+        body: JSON.stringify({ referenceId: "11111111-1111-4111-8111-111111111111" })
+      }),
+      env as never
+    );
+    expect(response.status).toBe(200);
+    await expect(json(response)).resolves.toMatchObject({ ok: true });
+    expect(db.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects malformed report reference IDs without deleting data", async () => {
+    const { env, db } = makeEnv();
+    const response = await worker.fetch(
+      new Request("https://api.example/api/v1/reports/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referenceId: "not-a-reference" })
+      }),
+      env as never
+    );
+    expect(response.status).toBe(400);
+    expect(db.batch).not.toHaveBeenCalled();
+  });
 });

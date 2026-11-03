@@ -19,6 +19,7 @@ const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "";
 export default function ReportForm() {
   const [phone, setPhone] = useState("");
   const [category, setCategory] = useState("spam");
+  const [publicLabel, setPublicLabel] = useState("");
   const [description, setDescription] = useState("");
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
@@ -67,14 +68,14 @@ export default function ReportForm() {
       const response = await fetch(`${API}/api/v1/reports`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Turnstile-Token": token },
-        body: JSON.stringify({ phone: normalized, category, description })
+        body: JSON.stringify({ phone: normalized, category, description, publicLabel: category === "business" ? publicLabel : undefined })
       });
       const data = await response.json() as { ok: boolean; error?: string; report?: { id?: string; status?: string } };
       if (!response.ok || !data.ok) throw new Error(data.error ?? "Pengiriman gagal.");
       setMessage("Laporan diterima dan menunggu moderasi. Simpan ID referensi ini untuk keperluan tindak lanjut.");
       setReceiptId(data.report?.id ?? "");
       setCopied(false);
-      setPhone(""); setDescription(""); setToken("");
+      setPhone(""); setDescription(""); setPublicLabel(""); setToken("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Terjadi kesalahan jaringan.");
     } finally {
@@ -91,14 +92,17 @@ export default function ReportForm() {
       </label>
       <label className="grid gap-2 text-xs text-hc-muted">Kategori
         <select value={category} onChange={e => setCategory(e.target.value)} className="rounded-xl border border-hc-line bg-[#181b17] px-4 py-3 text-sm text-white">
-          <option value="spam">Spam</option><option value="scam">Dugaan penipuan</option><option value="telemarketing">Telemarketing</option><option value="business">Layanan bisnis</option><option value="other">Lainnya</option>
+          <option value="spam">Spam</option><option value="scam">Dugaan penipuan</option><option value="telemarketing">Telemarketing</option><option value="business">Nama bisnis / layanan</option><option value="other">Lainnya</option>
         </select>
       </label>
     </div>
+    {category === "business" && <label className="grid gap-2 text-xs text-hc-muted">Nama bisnis atau layanan (2-80 karakter)
+      <input required minLength={2} maxLength={80} value={publicLabel} onChange={e => setPublicLabel(e.target.value)} placeholder="Contoh: Toko Maju Jaya / Kurir ABC" className="rounded-xl border border-hc-line bg-black/20 px-4 py-3 text-sm text-white"/>
+    </label>}
     <label className="grid gap-2 text-xs text-hc-muted">Pengalaman faktual (10-500 karakter)
       <textarea required minLength={10} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} rows={4} placeholder="Ceritakan pengalaman tanpa menyebut identitas pribadi." className="rounded-xl border border-hc-line bg-black/20 px-4 py-3 text-sm text-white"/>
     </label>
-    <p className="text-xs text-hc-muted">Jangan sertakan nama, alamat, nomor identitas, data keuangan, atau informasi pribadi siapa pun.</p>
+    <p className="text-xs text-hc-muted">Label publik hanya untuk nama bisnis/layanan. Jangan masukkan nama atau identitas pribadi pemilik nomor.</p>
     {SITE_KEY ? <div ref={captcha}/> : <p className="text-xs text-amber-200">Tambahkan VITE_TURNSTILE_SITE_KEY untuk mengaktifkan verifikasi.</p>}
     <div className="flex flex-wrap items-center justify-between gap-3">
       <button disabled={busy || !SITE_KEY} className="search-button" type="submit">{busy ? "Mengirim..." : "Kirim laporan"} <Send size={15}/></button>

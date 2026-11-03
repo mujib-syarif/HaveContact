@@ -122,7 +122,7 @@ export default {
     }
     const status=url.searchParams.get("status")??"pending";
     if(!["pending","approved","rejected"].includes(status))return json(request,env,{ok:false,error:"Invalid status"},400);
-    const rows=await env.DB.prepare("SELECT id,category,description,status,created_at,moderation_reason FROM reports WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
+    const rows=await env.DB.prepare("SELECT id,category,description,public_label,status,created_at,moderation_reason FROM reports WHERE status=? ORDER BY created_at ASC LIMIT 100").bind(status).all();
     return json(request,env,{ok:true,reports:rows.results??[]});
   }
   const feedbackParts=url.pathname.split("/");
@@ -201,8 +201,10 @@ export default {
     if(!rate.allowed)return json(request,env,{ok:false,error:"Too many lookups. Please wait before trying again."},429,{"Retry-After":String(rate.retryAfter)});
     const phoneHash=await hmac(phone,env.PHONE_HASH_SECRET);
     const row=await env.DB.prepare("SELECT category,COUNT(*) AS total FROM reports WHERE phone_hash=? AND status='approved' GROUP BY category").bind(phoneHash).all<{category:string;total:number}>();
+    const labelRows=await env.DB.prepare("SELECT public_label,COUNT(*) AS mentions FROM reports WHERE phone_hash=? AND status='approved' AND public_label IS NOT NULL GROUP BY public_label ORDER BY mentions DESC LIMIT 10").bind(phoneHash).all<{public_label:string;mentions:number}>();
     const reports=row.results??[];
-    return json(request,env,{ok:true,result:{number:phone,metadata:getPhoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),identity:null,disclaimer:"Community reports are not proof of identity or wrongdoing."}});
+    const labels=(labelRows.results??[]).map(item=>({label:item.public_label,mentions:item.mentions,source:"community",verified:false}));
+    return json(request,env,{ok:true,result:{number:phone,metadata:getPhoneMetadata(phone),status:reports.length?"reported":"no_community_reports",reportCount:reports.reduce((sum,item)=>sum+item.total,0),categories:reports.map(item=>({name:item.category,count:item.total})),labels,identity:null,disclaimer:"Community labels are user-submitted and moderated; they do not establish personal identity or wrongdoing."}});
   }
 
   if(request.method==="POST"&&url.pathname==="/api/v1/reports"){
@@ -214,6 +216,9 @@ export default {
     const body=parsedBody.data;
     const phone=normalizePhone(body.phone),category=body.category;
     const description=typeof body.description==="string"?body.description.trim():"";
+    const publicLabel=typeof body.publicLabel==="string"?body.publicLabel.trim():"";
+    if(category==="business"&&(publicLabel.length<2||publicLabel.length>80||hasUnsupportedControlCharacters(publicLabel)))return json(request,env,{ok:false,error:"Nama bisnis/layanan wajib diisi (2-80 karakter)."},400);
+    if(category!=="business"&&publicLabel)return json(request,env,{ok:false,error:"Label publik hanya diizinkan untuk kategori bisnis."},400);
     const categories=["spam","scam","telemarketing","business","other"];
     if(!phone||typeof category!=="string"||!categories.includes(category))return json(request,env,{ok:false,error:"Invalid phone number or category"},400);
     if(description.length<10||description.length>500)return json(request,env,{ok:false,error:"Description must be 10-500 characters"},400);
@@ -222,7 +227,7 @@ export default {
     const phoneRate=await rateLimit(request,env,"report-phone",3,86400,phoneHash);
     if(!phoneRate.allowed)return json(request,env,{ok:false,error:"This number has reached its community report limit. Try again later."},429,{"Retry-After":String(phoneRate.retryAfter)});
     const id=crypto.randomUUID();
-    await createPendingReport(env.DB,{id,phoneHash,callingCode:getPhoneMetadata(phone)?.countryCallingCode??null,category,description});
+    await createPendingReport(env.DB,{id,phoneHash,callingCode:getPhoneMetadata(phone)?.countryCallingCode??null,category,description,publicLabel:publicLabel||null});
     return json(request,env,{ok:true,report:{id,status:"pending"},message:"Report submitted for moderation."},201);
   }
   return json(request,env,{ok:false,error:"Not found"},404);

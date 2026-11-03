@@ -11,6 +11,7 @@ type PendingReportWrite = {
   callingCode: string | null;
   category: string;
   description: string;
+  publicLabel?: string | null;
 };
 
 export async function persistModeration(
@@ -33,8 +34,8 @@ export async function createPendingReport(
   await db.batch([
     db.prepare("INSERT OR IGNORE INTO phone_index (phone_hash,country_calling_code) VALUES (?,?)")
       .bind(input.phoneHash, input.callingCode),
-    db.prepare("INSERT INTO reports (id,phone_hash,category,description,status) VALUES (?,?,?,?,'pending')")
-      .bind(input.id, input.phoneHash, input.category, input.description)
+    db.prepare("INSERT INTO reports (id,phone_hash,category,description,status,public_label) VALUES (?,?,?,?,'pending',?)")
+      .bind(input.id, input.phoneHash, input.category, input.description, input.publicLabel ?? null)
   ]);
 }
 export async function removeReport(db: D1Database, reportId: string): Promise<boolean> {

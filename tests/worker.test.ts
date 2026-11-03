@@ -157,7 +157,7 @@ describe("HaveContact Worker API", () => {
       categories: [],
       identity: null
     });
-    expect(db.prepare).toHaveBeenCalledTimes(2);
+    expect(db.prepare).toHaveBeenCalledTimes(3);
   });
 
   it("enforces lookup rate limits and returns Retry-After", async () => {

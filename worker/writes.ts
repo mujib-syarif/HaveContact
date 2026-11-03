@@ -1,5 +1,3 @@
-import type { D1Database } from "@cloudflare/workers-types";
-
 type ModerationWrite = {
   reportId: string;
   action: "approved" | "rejected";

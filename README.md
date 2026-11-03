@@ -23,7 +23,7 @@ npm run dev
 
 ## Local API
 1. Create a D1 database and update `database_id` in `wrangler.toml`.
-2. Apply schema: `npm run db:local` (includes all numbered migrations).
+2. Apply all numbered migrations: `npm run db:local`.
 3. Set local secrets in `.dev.vars` (never commit it):
    ```
    PHONE_HASH_SECRET=replace-with-long-random-secret
@@ -36,10 +36,9 @@ ADMIN_API_TOKEN=long-random-admin-token
 ## Production setup
 - Create D1: `npx wrangler d1 create havecontact-db`.
 - Replace the placeholder database ID in `wrangler.toml`.
-- Set secrets with `npx wrangler secret put PHONE_HASH_SECRET` and `npx wrangler secret put TURNSTILE_SECRET
-npx wrangler secret put ADMIN_API_TOKEN`.
+- Set each secret separately: `npx wrangler secret put PHONE_HASH_SECRET`, `npx wrangler secret put TURNSTILE_SECRET`, and `npx wrangler secret put ADMIN_API_TOKEN`.
 - Configure a Turnstile widget and set `VITE_TURNSTILE_SITE_KEY` in the frontend build environment. The report form renders the challenge when this key is present.
-- Apply migration: `npm run db:remote`.
+- Apply all numbered migrations: `npm run db:remote`.
 - Deploy API: `npx wrangler deploy`.
 - Configure frontend API base URL and deploy the static site.
 
@@ -80,7 +79,7 @@ MIT - see LICENSE.
 ## Security and deployment checklist
 
 1. Create the Cloudflare D1 database and replace the placeholder database ID in `wrangler.toml`.
-2. Apply all migrations, including `0002_request_limits.sql`, using `npx wrangler d1 migrations apply havecontact-db --remote`.
+2. Apply all numbered migrations, including `0002_request_limits.sql` and `0003_moderation_reason.sql`, using `npx wrangler d1 migrations apply havecontact-db --remote`.
 3. Set Worker secrets: `PHONE_HASH_SECRET`, `TURNSTILE_SECRET`, and `ADMIN_API_TOKEN`.
 4. Set the Worker variable `ALLOWED_ORIGINS` to the exact deployed frontend origin(s), comma-separated. The API intentionally does not send wildcard CORS permission.
 5. Set frontend build variables `VITE_API_BASE_URL` and `VITE_TURNSTILE_SITE_KEY`.
@@ -91,7 +90,7 @@ Rate limiting uses HMAC-derived request buckets rather than storing raw client I
 
 ## Automated checks
 
-Run `npm test` for phone-number normalization and numbering-metadata unit tests. CI runs typecheck, tests, and production build on pushes and pull requests.
+Run `npm test` for phone-number normalization, numbering metadata, and bounded JSON request-parser tests. CI runs typecheck, tests, and production build on pushes and pull requests.
 
 
 ## Moderation audit
